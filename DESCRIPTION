@@ -1,0 +1,16 @@
+Package: ical.utils
+Type: Package
+Title: Read and Create iCalendar Files
+Version: 0.1-0
+Date: 2019-10-26
+Authors@R: person("Enrico", "Schumann",
+                  role  = c("aut", "cre"),
+                  email = "es@enricoschumann.net",
+                  comment = c(ORCID = "0000-0001-7601-6576"))
+Maintainer: Enrico Schumann <es@enricoschumann.net>
+Description: Utilities for handling ical data.
+             Written in pure R.
+License: GPL-3
+URL: http://enricoschumann.net/ical.utils,
+     https://github.com/enricoschumann/ical.utils
+Imports: textutils
