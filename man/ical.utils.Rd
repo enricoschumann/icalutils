@@ -37,7 +37,7 @@ read_vtimezone(file, ..., strict.eol = TRUE)
 
   }
   \item{return.class}{
-    character: currently list and data.frame are supported
+-    character: currently list and data.frame are supported
   }
   \item{timestamps.POSIXct}{
     logical. Applies only if return.class is data.frame
@@ -55,18 +55,20 @@ read_vtimezone(file, ..., strict.eol = TRUE)
 }
 \details{
 
-  \code{read_icalendar} reads a file in ical format. It returns a list
+  \code{read_icalendar} reads a file in ical format. It returns a list,
+  in which each entry contains one calendar component.
 
+  Alternatively,  \code{return.class} may be set to \code{data.frame}
 
   - written in R
 
   - icalendar supports timestamps with and without
-    times, and these are mapped to \Rs
+    times, and these are mapped to \R's
     \code{\link{Date}} and \code{\link{POSIXct}},
     respectively
 
     - handle (expand) recurring events
-    
+
 }
 \value{
 

@@ -1,4 +1,12 @@
+2019-10-28  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/ical_utils.R (read_vevent): add (limited)
+        support for yearly and weekly recurring events
+        (read_vevent): add arguments 'recur.expand',
+        'recur.until' and 'recur.count'
+
+
 2019-10-26  Enrico Schumann  <es@enricoschumann.net>
 
-	* : initial version
+        * : initial version
 

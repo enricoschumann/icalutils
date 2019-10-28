@@ -27,6 +27,9 @@ read_vevent <- function(file, ...,
                         strict.eol = TRUE,
                         adjust.allday = TRUE,
                         return.class = "list",
+                        recur.expand = FALSE,
+                        recur.until = NULL,
+                        recur.count = NULL,
                         timestamps.POSIXct = TRUE,
                         timestamps.Date = FALSE,
                         timestamps.tz = "") {
@@ -107,21 +110,32 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
 
 }
 
-.seq_rrule <- function(DTSTART,
-                       DTEND,
-                       FREQ, ## MUST
-                       UNTIL, COUNT,
-                       INTERVAL = 1,
-                       BYSECOND, BYMINUTE, BYHOUR, BYDAY,
-                       BYMONTHDAY,  ## 1 -- 31    -1 -- -31
-                       BYYEARDAY,   ## 1 -- 366   -1 -- 366
-                       BYWEEKNO,    ## 1 -- 53
-                       BYMONTH,  ## 1 - 12
-                       BYSETPOS,
-                       WKST   ## weekstart: MO, TU, WE, TH, FR, SA, and SU
-                       ) {
+.seq_rrule <- function(DTSTART, DTEND, RRULE) {
+    ## FREQ, ## MUST
+    ## UNTIL,
+    ## COUNT,
+    ## INTERVAL = 1,
+    ## BYSECOND,
+    ## BYMINUTE,
+    ## BYHOUR,
+    ## BYDAY,
+    ## BYMONTHDAY,  ## 1 -- 31    -1 -- -31
+    ## BYYEARDAY,   ## 1 -- 366   -1 -- 366
+    ## BYWEEKNO,    ## 1 -- 53
+    ## BYMONTH,  ## 1 - 12
+    ## BYSETPOS,
+    ## WKST   ## weekstart: MO, TU, WE, TH, FR, SA, and SU
 
-    if (missing(UNTIL) && missing (COUNT) && inherits(DTSTART, "Date")) {
+    FREQ <- toupper(RRULE$FREQ)
+
+    if (is.null(RRULE$INTERVAL))
+        INTERVAL <- 1
+    else
+        INTERVAL <- RRULE$INTERVAL
+
+    if (is.null (RRULE$UNTIL) &&
+        is.null (RRULE$COUNT) &&
+        inherits(DTSTART, "Date")) {
         UNTIL <- Sys.Date() + 365*10
         message("no UNTIL specified: use ", UNTIL)
     }
@@ -141,113 +155,90 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
     ## BYDAY "SU" / "MO" / "TU" / "WE" / "TH" / "FR" / "SA"
     ## +1SU first sunday, -1SU last sunday ## MONTHLY and YEARLY
 
-    .wday <- c("SU" = 0,
-               "MO" = 1,
-               "TU" = 2,
-               "WE" = 3,
-               "TH" = 4,
-               "FR" = 5,
-               "SA" = 6)
-    freq.table <- c(YEARLY   = "year",
-                    MONTHLY  = "month",
-                    WEEKLY   = "week",
-                    DAILY    = "day",
-                    HOURLY   = "hour",
-                    MINUTELY = "minute",
-                    SECONDLY = "second")
+    .wday <- c(
+        "SU" = 0,
+        "MO" = 1,
+        "TU" = 2,
+        "WE" = 3,
+        "TH" = 4,
+        "FR" = 5,
+        "SA" = 6)
 
+    start <- DTSTART
+    end <- DTEND
+    if (FREQ == "YEARLY") {
+        if        ( is.null(RRULE$BYSECOND)   &&
+                    is.null(RRULE$BYMINUTE)   &&
+                    is.null(RRULE$BYHOUR)     &&
+                    is.null(RRULE$BYDAY)      &&
+                    is.null(RRULE$BYMONTHDAY) &&
+                    is.null(RRULE$BYYEARDAY)  &&
+                    is.null(RRULE$BYWEEKNO)   &&
+                    is.null(RRULE$BYMONTH)    &&
+                    is.null(RRULE$BYSETPOS)   &&
+                    is.null(RRULE$WKST)) {
 
-
-    if (inherits(DTSTART, "Date")) {
-        .start <- DTSTART
-        .end <- DTEND
-        if (FREQ == "YEARLY") {
-            if (        missing(BYSECOND)   &&
-                        missing(BYMINUTE)   &&
-                        missing(BYHOUR)     &&
-                        missing(BYDAY)      &&
-                        missing(BYMONTHDAY) &&
-                        missing(BYYEARDAY)  &&
-                        missing(BYWEEKNO)   &&
-                        missing(BYMONTH)    &&
-                        missing(BYSETPOS)   &&
-                        missing(WKST)) {
-
-                ans <- seq(.start, to = UNTIL, by = paste(INTERVAL, "year"))
-
-            } else if ( missing(BYSECOND)   &&
-                        missing(BYMINUTE)   &&
-                        missing(BYHOUR)     &&
-                        !missing(BYDAY)      &&
-                        missing(BYMONTHDAY) &&
-                        missing(BYYEARDAY)  &&
-                        missing(BYWEEKNO)   &&
-                        !missing(BYMONTH)    &&
-                        missing(BYSETPOS)   &&
-                        missing(WKST)) {
-
+            if (inherits(DTSTART, "DATE"))
+                ans <- seq(DTSTART, to = UNTIL, by = paste(INTERVAL, "year"))
+            else if (inherits(DTSTART, "POSIXct"))
                 message("nothing done")
-            }
-        } else if (FREQ == "MONTHLY") {
-            if ( missing(BYSECOND)   &&
-                 missing(BYMINUTE)   &&
-                 missing(BYHOUR)     &&
-                 missing(BYDAY)      &&
-                 missing(BYMONTHDAY) &&
-                 missing(BYYEARDAY)  &&
-                 missing(BYWEEKNO)   &&
-                !missing(BYMONTH)    &&
-                 missing(BYSETPOS)   &&
-                 missing(WKST)) {
 
-                message("nothing done")
-            }
 
-        } else if (FREQ == "WEEKLY") {
-            if ( missing(BYSECOND)   &&
-                 missing(BYMINUTE)   &&
-                 missing(BYHOUR)     &&
-                !missing(BYDAY)      &&
-                 missing(BYMONTHDAY) &&
-                 missing(BYYEARDAY)  &&
-                 missing(BYWEEKNO)   &&
-                 missing(BYMONTH)    &&
-                 missing(BYSETPOS)   &&
-                 missing(WKST)) {
+        } else if ( is.null(RRULE$BYSECOND)   &&
+                    is.null(RRULE$BYMINUTE)   &&
+                    is.null(RRULE$BYHOUR)     &&
+                   !is.null(RRULE$BYDAY)      &&
+                    is.null(RRULE$BYMONTHDAY) &&
+                    is.null(RRULE$BYYEARDAY)  &&
+                    is.null(RRULE$BYWEEKNO)   &&
+                   !is.null(RRULE$BYMONTH)    &&
+                    is.null(RRULE$BYSETPOS)   &&
+                    is.null(RRULE$WKST)) {
 
-            }
+            message("nothing done")
+        }
+    } else if (FREQ == "MONTHLY") {
+        if        ( is.null(BYSECOND)   &&
+                    is.null(BYMINUTE)   &&
+                    is.null(BYHOUR)     &&
+                    is.null(BYDAY)      &&
+                    is.null(BYMONTHDAY) &&
+                    is.null(BYYEARDAY)  &&
+                    is.null(BYWEEKNO)   &&
+                   !is.null(BYMONTH)    &&
+                    is.null(BYSETPOS)   &&
+                    is.null(WKST)) {
+
+            message("nothing done")
         }
 
-    } else if (inherits(DTSTART, "POSIXct")) {
-
-
-        .start <- DTSTART
-        .end <- DTEND
-        if (FREQ == "YEARLY") {
-            message("nothing done")
-        } else if (FREQ == "MONTHLY") {
-            message("nothing done")
-        } else if (FREQ == "WEEKLY") {
-            if ( missing(BYSECOND)   &&
-                 missing(BYMINUTE)   &&
-                 missing(BYHOUR)     &&
-                !missing(BYDAY)      &&
-                 missing(BYMONTHDAY) &&
-                 missing(BYYEARDAY)  &&
-                 missing(BYWEEKNO)   &&
-                 missing(BYMONTH)    &&
-                 missing(BYSETPOS)   &&
-                 missing(WKST)) {
-                tmp <- as.POSIXlt(DTSTART)
-                .date0 <- as.Date(paste(tmp$year + 1900L, tmp$mon + 1L, tmp$mday, sep = "-"))
-
-                ## unclass(Sys.Date()+7) %% 7 ==> 1 Friday
+    } else if (FREQ == "WEEKLY") {
+        if        ( is.null(RRULE$BYSECOND)   &&
+                    is.null(RRULE$BYMINUTE)   &&
+                    is.null(RRULE$BYHOUR)     &&
+                   !is.null(RRULE$BYDAY)      &&
+                    is.null(RRULE$BYMONTHDAY) &&
+                    is.null(RRULE$BYYEARDAY)  &&
+                    is.null(RRULE$BYWEEKNO)   &&
+                    is.null(RRULE$BYMONTH)    &&
+                    is.null(RRULE$BYSETPOS)   &&
+                    is.null(RRULE$WKST)) {
+            if (inherits(DTSTART, "Date"))
+                ans <- .next_weekday(.wday[RRULE$BYDAY],
+                                     start = DTSTART, count = RRULE$COUNT)
+            else {
+                lt <- as.POSIXlt(DTSTART)
+                dates <- .next_weekday(.wday[RRULE$BYDAY],
+                                       start = as.Date(DTSTART),
+                                       count = RRULE$COUNT)
+                ans <- as.POSIXct(paste(dates, lt$hour, lt$min, lt$sec),
+                                  format = "%Y-%m-%d %H %M %S",
+                                  tzone = attributes(DTSTART, "tzone"))
             }
+
         }
-
-
-
     }
+
     ans
 }
 
@@ -338,6 +329,10 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
             }
         }
     }
+    if ("RRULE" %in% nm) {
+        ans[["RRULE"]] <- .parse_rrule(ans[["RRULE"]])[[1]]
+
+    }
     ans
 }
 
@@ -347,16 +342,24 @@ ical_structure <- function(file, ..., strict.eol = TRUE) {
     cal <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", cal)
     cal <- strsplit(cal, "\r?\n")[[1]]
 
-    res <- list()
+    n <- length(cal)
+    component <- character(n)
+    level <-start <- end <- numeric(n)
     current.level <- 0
     for (i in seq_along(cal)) {
         if (grepl("^BEGIN:", cal[i])) {
             current.level <- current.level + 1
             cat(rep("  ", current.level-1), cal[i], "\n", sep = "")
+            level[i] <- current.level
+            start[i] <- i
+            component[i] <- cal[i]
         }
-        if (grepl("^END:", cal[i]))
+        if (grepl("^END:", cal[i])) {
             current.level <- current.level - 1
+            end[i] <- i
+        }
     }
+    data.frame(component, level, start, end)
 }
 
 allday_event <- function(date, summary, description = "", file) {
