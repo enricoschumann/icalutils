@@ -1,6 +1,6 @@
-\name{ical.utils}
-\alias{ical.utils-package}
-\alias{ical.utils}
+\name{icalutils}
+\alias{icalutils}
+\alias{icalutils-package}
 \alias{read_icalendar}
 \alias{read_vevent}
 \alias{read_vtimezone}

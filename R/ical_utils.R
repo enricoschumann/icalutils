@@ -49,18 +49,33 @@ read_vevent <- function(file, ...,
         event <- cal[seq(begin[i] + 1, end[i] - 1)]
         res[[i]] <- .expand_properties(.properties(event))
     }
-
     if (return.class == "data.frame") {
         uid <- unlist(lapply(res, `[[`, "UID"))
+        recurring <- unlist(lapply(res, function(x) "RRULE" %in% names(x)))
 
         start <- lapply(res, `[[`, "DTSTART")
+        end <- lapply(res, `[[`, "DTEND")
+        if (recur.expand) {
+            RRULE <- lapply(res[recurring], `[[`, "RRULE")
+            for (r in seq_along(RRULE)) {
+                created <- icalutils:::.seq_rrule(start[recurring][[r]],
+                                                  end  [recurring][[r]],
+                                                  RRULE[[r]],
+                                                  UNTIL = recur.until,
+                                                  COUNT = recur.count)
+                if (isFALSE(created))
+                    message("cannot parse RRULE",
+                            RRULE[[r]])
+
+            }
+        }
+
         all.day <- unlist(lapply(start, function(x) inherits(x, "Date")))
         start[all.day] <- lapply(start[all.day],
                                  function(x) as.POSIXct(paste(x, "00:00:00"),
                                                         tz = timestamps.tz))
         start <- .POSIXct(unlist(start))
 
-        end <- lapply(res, `[[`, "DTEND")
         all.day <- unlist(lapply(end, function(x) inherits(x, "Date")))
         end[all.day] <- lapply(end[all.day],
                                function(x) as.POSIXct(paste(x, "00:00:00"),
@@ -75,7 +90,6 @@ read_vevent <- function(file, ...,
         description <- unlist(lapply(description,
                               function(x) if (is.null(x)) "" else x))
 
-        recurring <- unlist(lapply(res, function(x) "RRULE" %in% names(x)))
         res <- data.frame(uid,
                           summary,
                           description,
@@ -110,7 +124,8 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
 
 }
 
-.seq_rrule <- function(DTSTART, DTEND, RRULE) {
+.seq_rrule <- function(DTSTART, DTEND, RRULE, UNTIL, COUNT,
+                       msg.violations = TRUE) {
     ## FREQ, ## MUST
     ## UNTIL,
     ## COUNT,
@@ -126,6 +141,7 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
     ## BYSETPOS,
     ## WKST   ## weekstart: MO, TU, WE, TH, FR, SA, and SU
 
+    ## browser()
     FREQ <- toupper(RRULE$FREQ)
 
     if (is.null(RRULE$INTERVAL))
@@ -133,10 +149,30 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
     else
         INTERVAL <- RRULE$INTERVAL
 
-    if (is.null (RRULE$UNTIL) &&
-        is.null (RRULE$COUNT) &&
-        inherits(DTSTART, "Date")) {
-        UNTIL <- Sys.Date() + 365*10
+    if (inherits(DTSTART, "POSIXct"))
+        DTSTARTlt <- as.POSIXlt(DSTART)
+
+    if (!is.null(RRULE$UNTIL)) {
+        UNTIL <- RRULE$UNTIL
+        if (!class(DTSTART) %in% class(UNTIL) && msg.violations) {
+            message("DTSTART and UNTIL are not of the same type [3.3.10.]")
+            if (inherits(DTSTART, "Date"))
+                UNTIL <- as.Date(UNTIL)
+        }
+    } else if (!is.null(RRULE$COUNT)) {
+        COUNT <- RRULE$COUNT
+    } else if (is.null(RRULE$UNTIL) &&
+               is.null(RRULE$COUNT) &&
+               is.null(UNTIL) &&
+               is.null(COUNT)) {
+        ## neither COUNT nor UNTIL are specified in RRULE,
+        ## and recur.count/recur.until are NULL
+
+        if (inherits(DTSTART, "Date"))
+            UNTIL <- Sys.Date() + 365*10
+        else {
+            UNTIL <- as.POSIXct(Sys.Date() + 365*10)
+        }
         message("no UNTIL specified: use ", UNTIL)
     }
 
@@ -146,11 +182,9 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
     ## "last day of a month"
     ## FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR,SA,SU;BYSETPOS=-1
 
-
     ## "SECONDLY" / "MINUTELY" / "HOURLY" / "DAILY"
     ## / "WEEKLY" / "MONTHLY" / "YEARLY"
     ## => each can be of length > 1
-
 
     ## BYDAY "SU" / "MO" / "TU" / "WE" / "TH" / "FR" / "SA"
     ## +1SU first sunday, -1SU last sunday ## MONTHLY and YEARLY
@@ -164,8 +198,7 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
         "FR" = 5,
         "SA" = 6)
 
-    start <- DTSTART
-    end <- DTEND
+    ans <- FALSE
     if (FREQ == "YEARLY") {
         if        ( is.null(RRULE$BYSECOND)   &&
                     is.null(RRULE$BYMINUTE)   &&
@@ -178,10 +211,8 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
                     is.null(RRULE$BYSETPOS)   &&
                     is.null(RRULE$WKST)) {
 
-            if (inherits(DTSTART, "DATE"))
+            if (inherits(DTSTART, "Date"))
                 ans <- seq(DTSTART, to = UNTIL, by = paste(INTERVAL, "year"))
-            else if (inherits(DTSTART, "POSIXct"))
-                message("nothing done")
 
 
         } else if ( is.null(RRULE$BYSECOND)   &&
@@ -195,23 +226,24 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
                     is.null(RRULE$BYSETPOS)   &&
                     is.null(RRULE$WKST)) {
 
-            message("nothing done")
+
+
         }
     } else if (FREQ == "MONTHLY") {
-        if        ( is.null(BYSECOND)   &&
-                    is.null(BYMINUTE)   &&
-                    is.null(BYHOUR)     &&
-                    is.null(BYDAY)      &&
-                    is.null(BYMONTHDAY) &&
-                    is.null(BYYEARDAY)  &&
-                    is.null(BYWEEKNO)   &&
-                   !is.null(BYMONTH)    &&
-                    is.null(BYSETPOS)   &&
-                    is.null(WKST)) {
+        if        ( is.null(RRULE$BYSECOND)   &&
+                    is.null(RRULE$BYMINUTE)   &&
+                    is.null(RRULE$BYHOUR)     &&
+                    is.null(RRULE$BYDAY)      &&
+                    is.null(RRULE$BYMONTHDAY) &&
+                    is.null(RRULE$BYYEARDAY)  &&
+                    is.null(RRULE$BYWEEKNO)   &&
+                   !is.null(RRULE$BYMONTH)    &&
+                    is.null(RRULE$BYSETPOS)   &&
+                    is.null(RRULE$WKST)) {
 
-            message("nothing done")
+
+
         }
-
     } else if (FREQ == "WEEKLY") {
         if        ( is.null(RRULE$BYSECOND)   &&
                     is.null(RRULE$BYMINUTE)   &&
@@ -223,29 +255,39 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
                     is.null(RRULE$BYMONTH)    &&
                     is.null(RRULE$BYSETPOS)   &&
                     is.null(RRULE$WKST)) {
-            if (inherits(DTSTART, "Date"))
+
+            if (inherits(DTSTART, "Date")) {
+                if (is.null(COUNT))
+                    COUNT <- ceiling(as.numeric(UNTIL - DTSTART)/(7*INTERVAL))
+
                 ans <- .next_weekday(.wday[RRULE$BYDAY],
-                                     start = DTSTART, count = RRULE$COUNT)
-            else {
+                                     start = DTSTART,
+                                     count = COUNT,
+                                     interval = INTERVAL)
+                ans <- ans[ans <= UNTIL]
+
+            } else {
                 lt <- as.POSIXlt(DTSTART)
                 dates <- .next_weekday(.wday[RRULE$BYDAY],
                                        start = as.Date(DTSTART),
-                                       count = RRULE$COUNT)
+                                       count = COUNT,
+                                       interval = INTERVAL)
                 ans <- as.POSIXct(paste(dates, lt$hour, lt$min, lt$sec),
                                   format = "%Y-%m-%d %H %M %S",
                                   tzone = attributes(DTSTART, "tzone"))
             }
-
         }
     }
+
+    ## TODO: remove EXDATEs
 
     ans
 }
 
 
-.next_weekday <- function(wday, start, count = 1, frequency = 1)
+.next_weekday <- function(wday, start, count = 1, interval = 1)
     start + wday - unclass(start + 4) %% 7 +
-        frequency*7L*(seq_len(count) - 1L)
+        interval*7L*(seq_len(count) - 1L)
 
 
 .utc_dt <- function(x, ...) {
@@ -275,7 +317,7 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
         else
             x[["INTERVAL"]] <- 1
 
-        if ("UNTIL" %in% nm)
+        if ("UNTIL" %in% nm)  ## FIXME: if DATE?
             x[["UNTIL"]] <- .utc_dt(x[["UNTIL"]])
         class(x) <- "ical_utils_rrule"
         x

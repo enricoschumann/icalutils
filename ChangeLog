@@ -1,5 +1,8 @@
 2019-10-28  Enrico Schumann  <es@enricoschumann.net>
 
+	* DESCRIPTION (Package): rename package to
+	'icalutils'
+
         * R/ical_utils.R (read_vevent): add (limited)
         support for yearly and weekly recurring events
         (read_vevent): add arguments 'recur.expand',
