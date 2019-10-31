@@ -1,3 +1,6 @@
-v0.1-0  (2019-XX-XX; not yet released)
+v0.1-0  (2019-10-31)
 
-  o ...
+  o first release: the package provides functions for
+    reading files in icalendar format. The package is
+    still instable and incomplete; this is an early
+    release, mainly for testing purposes.

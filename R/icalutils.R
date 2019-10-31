@@ -30,6 +30,7 @@ read_vevent <- function(file, ...,
                         recur.expand = FALSE,
                         recur.until = NULL,
                         recur.count = NULL,
+                        use.OlsonNames = TRUE,
                         timestamps.POSIXct = TRUE,
                         timestamps.Date = FALSE,
                         timestamps.tz = "") {
@@ -40,14 +41,21 @@ read_vevent <- function(file, ...,
     cal <- strsplit(cal, "\r?\n")[[1]]
 
 
-    ## rfc5545: VEVENTs cannot be nested
+    ## RFC5545: VEVENTs cannot be nested
     begin <- grep("^BEGIN:VEVENT", cal)
     end <- grep("^END:VEVENT", cal)
 
+
     res <- list()
+    if (use.OlsonNames)
+        tz.names <- OlsonNames()
+    else
+        tz.names <- character(0)
+
     for (i in seq_along(begin)) {
         event <- cal[seq(begin[i] + 1, end[i] - 1)]
-        res[[i]] <- .expand_properties(.properties(event))
+        res[[i]] <- .expand_properties(.properties(event),
+                                       tz.names = tz.names)
     }
     if (return.class == "data.frame") {
         uid <- unlist(lapply(res, `[[`, "UID"))
@@ -58,14 +66,13 @@ read_vevent <- function(file, ...,
         if (recur.expand) {
             RRULE <- lapply(res[recurring], `[[`, "RRULE")
             for (r in seq_along(RRULE)) {
-                created <- icalutils:::.seq_rrule(start[recurring][[r]],
-                                                  end  [recurring][[r]],
-                                                  RRULE[[r]],
-                                                  UNTIL = recur.until,
-                                                  COUNT = recur.count)
+                created <- .seq_rrule(start[recurring][[r]],
+                                      end  [recurring][[r]],
+                                      RRULE[[r]],
+                                      UNTIL = recur.until,
+                                      COUNT = recur.count)
                 if (isFALSE(created))
-                    message("cannot parse RRULE",
-                            RRULE[[r]])
+                    message("cannot parse RRULE", RRULE[[r]])
 
             }
         }
@@ -84,15 +91,19 @@ read_vevent <- function(file, ...,
 
         summary <- lapply(res, `[[`, "SUMMARY")
         summary <- unlist(lapply(summary,
-                              function(x) if (is.null(x)) "" else x))
+                              function(x) if (is.null(x)) NA else x))
 
         description <- lapply(res, `[[`, "DESCRIPTION")
         description <- unlist(lapply(description,
-                              function(x) if (is.null(x)) "" else x))
+                              function(x) if (is.null(x)) NA else x))
 
+        location <- lapply(res, `[[`, "LOCATION")
+        location <- unlist(lapply(location,
+                              function(x) if (is.null(x)) NA else x))
         res <- data.frame(uid,
                           summary,
                           description,
+                          location,
                           start,
                           end,
                           all.day,
@@ -102,8 +113,7 @@ read_vevent <- function(file, ...,
     res
 }
 
-read_vtimezone <- function(file, ...,
-                        strict.eol = TRUE) {
+read_vtimezone <- function(file, ..., strict.eol = TRUE) {
     cal <- .read_one_line(file)
     cal <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", cal)
     cal <- strsplit(cal, "\r?\n")[[1]]
@@ -120,11 +130,9 @@ read_vtimezone <- function(file, ...,
     res
 }
 
-seq_rrule <- function(start, event, until = NULL, count = NULL) {
+seq_rrule <- function(start, event, until = NULL, count = NULL) {}
 
-}
-
-.seq_rrule <- function(DTSTART, DTEND, RRULE, UNTIL, COUNT,
+.seq_rrule <- function(DTSTART, DTEND, RRULE, UNTIL = NULL, COUNT = NULL,
                        msg.violations = TRUE) {
     ## FREQ, ## MUST
     ## UNTIL,
@@ -141,16 +149,34 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
     ## BYSETPOS,
     ## WKST   ## weekstart: MO, TU, WE, TH, FR, SA, and SU
 
-    ## browser()
+    RRULE.text <- attr(RRULE, "RRULE")
     FREQ <- toupper(RRULE$FREQ)
-
+    DTSTARTlt <- as.POSIXlt(DTSTART)
     if (is.null(RRULE$INTERVAL))
-        INTERVAL <- 1
-    else
-        INTERVAL <- RRULE$INTERVAL
+        INTERVAL <- 1 else INTERVAL <- RRULE$INTERVAL
 
-    if (inherits(DTSTART, "POSIXct"))
-        DTSTARTlt <- as.POSIXlt(DSTART)
+    .wday <- c(
+        "SU" = 0,
+        "MO" = 1,
+        "TU" = 2,
+        "WE" = 3,
+        "TH" = 4,
+        "FR" = 5,
+        "SA" = 6)
+
+    if (!is.null(RRULE$BYDAY)) {
+
+        if (grepl("[+-]?\\d+[A-Z]+", RRULE$BYDAY)) {
+            pos <- as.numeric(sub("[+-]?(\\d+)[A-Z]+", "\\1", RRULE$BYDAY))
+            wday <- sub("[+-]?\\d+([A-Z]+)", "\\1", RRULE$BYDAY)
+            backw <- sub("([+-]?)\\d+[A-Z]+", "\\1", RRULE$BYDAY)
+            if (backw == "" || backw == "+")
+                backw <- FALSE else backw <- TRUE
+        }
+
+
+    } else
+        BYDAY <- NULL
 
     if (!is.null(RRULE$UNTIL)) {
         UNTIL <- RRULE$UNTIL
@@ -176,27 +202,8 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
         message("no UNTIL specified: use ", UNTIL)
     }
 
-    ## "the last work day of the month"
-    ## FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1
 
-    ## "last day of a month"
-    ## FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR,SA,SU;BYSETPOS=-1
 
-    ## "SECONDLY" / "MINUTELY" / "HOURLY" / "DAILY"
-    ## / "WEEKLY" / "MONTHLY" / "YEARLY"
-    ## => each can be of length > 1
-
-    ## BYDAY "SU" / "MO" / "TU" / "WE" / "TH" / "FR" / "SA"
-    ## +1SU first sunday, -1SU last sunday ## MONTHLY and YEARLY
-
-    .wday <- c(
-        "SU" = 0,
-        "MO" = 1,
-        "TU" = 2,
-        "WE" = 3,
-        "TH" = 4,
-        "FR" = 5,
-        "SA" = 6)
 
     ans <- FALSE
     if (FREQ == "YEARLY") {
@@ -226,6 +233,30 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
                     is.null(RRULE$BYSETPOS)   &&
                     is.null(RRULE$WKST)) {
 
+            dates <- seq(as.Date(DTSTART, "%Y%m%d"),
+                         as.Date(UNTIL, "%Y%m%d"), by = "1 day")
+            dates <- dates[month(dates) %in% RRULE$BYMONTH]
+
+            if (grepl("[+-]?\\d+[A-Z]+", RRULE$BYDAY)) {
+                pos <- as.numeric(sub("[+-]?(\\d+)[A-Z]+", "\\1", RRULE$BYDAY))
+                wday <- sub("[+-]?\\d+([A-Z]+)", "\\1", RRULE$BYDAY)
+                backw <- sub("([+-]?)\\d+[A-Z]+", "\\1", RRULE$BYDAY)
+                if (backw == "" || backw == "+")
+                    backw <- FALSE else backw <- TRUE
+            }
+            dates <- dates[.weekday(dates) %in% .wday[wday]]
+            dates <- .Date(tapply(dates, year(dates), `[`, pos))
+
+            if (inherits(DTSTART, "POSIXct")) {
+                DTSTARTs <- as.POSIXct(paste(as.character(dates),
+                                             DTSTARTlt$hour,
+                                             DTSTARTlt$min,
+                                             DTSTARTlt$sec),
+                                       format = "%Y-%m-%d %H %M %S",
+                                       tz = "UTC")
+                ans <- data.frame(DTSTART = DTSTARTs,
+                                  DTEND = NA)
+            }
 
 
         }
@@ -274,16 +305,19 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
                                        interval = INTERVAL)
                 ans <- as.POSIXct(paste(dates, lt$hour, lt$min, lt$sec),
                                   format = "%Y-%m-%d %H %M %S",
-                                  tzone = attributes(DTSTART, "tzone"))
+                                  tzone = attr(DTSTART, "tzone"))
             }
         }
     }
 
     ## TODO: remove EXDATEs
-
     ans
+
 }
 
+
+.weekday <- function(dates)
+    unclass(dates + 4) %% 7
 
 .next_weekday <- function(wday, start, count = 1, interval = 1)
     start + wday - unclass(start + 4) %% 7 +
@@ -322,23 +356,35 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
         class(x) <- "ical_utils_rrule"
         x
     })
-
+    for (i in seq_along(rules))
+        attr(rules[[i]], "RRULE") <- rrule[i]
     rules
 }
 
 .properties <- function(s, ...) {
     ## receives a character vector (lines of iCalendar),
-    ## and returns named character vector (names = properties)
+    ## and returns named list (names = properties)
+
     p <- "^([^:;]+?)[:;](.*)"
     ans <- gsub(p, "\\2", s, perl = TRUE)
     names(ans) <- gsub(p, "\\1", s, perl = TRUE)
+    ans <- as.list(ans)
+
+    ## check for property parameters [RFC5545:3.2.]
+    param <- grep("[^:]+;.*:", s)
+    for (i in seq_along(param)) {
+        attr(ans[[ param[i] ]], "parameters") <-
+            sub("(.*):(.*)", "\\1", ans[[ param[i] ]])
+        ans[[ param[i] ]] <-
+            sub("(.*):(.*)", "\\2", ans[[ param[i] ]])
+    }
     ans
 }
 
-.expand_properties <- function(p) {
-    ## receives a named character vector (names = properties),
-    ## and returns a list
-    ans <- as.list(p)
+.expand_properties <- function(p, tz.names = character(0)) {
+    ## receives a named list (names = properties) with
+    ## character entries,  and returns a list
+    ans <- p
     nm <- names(ans)
     dtfields <- c("CREATED",
                   "LAST-MODIFIED",
@@ -349,25 +395,30 @@ seq_rrule <- function(start, event, until = NULL, count = NULL) {
     for (field in dtfields) {
         if (field %in% nm) {
             if (endsWith(ans[[field]], "Z")) {
-                ans[[field]] <- as.POSIXct(
-                    strptime(ans[[field]],
-                             format = "%Y%m%dT%H%M%S",
-                             tz = "UTC"))
-            } else if (grepl("^VALUE=DATE",
-                             ans[[field]],
-                             ignore.case = TRUE)) {
-                n <- nchar(ans[[field]])
-                ans[[field]] <- as.Date(substr(ans[[field]], n - 7, n),
+
+                ans[[field]] <- .utc_dt(ans[[field]])
+
+            } else if (length(
+                       grep("^VALUE=DATE",
+                            attr(ans[[field]], "parameters"),
+                            ignore.case = TRUE))) {
+
+                ans[[field]] <- as.Date(ans[[field]],
                                         format = "%Y%m%d")
-            } else if (grepl("^TZID",
-                             ans[[field]],
-                             ignore.case = TRUE)) {
-                n <- nchar(ans[[field]])
-                tz <- substr(ans[[field]], 6, n - 16)
-                ans[[field]] <- as.POSIXct(
-                    strptime(substr(ans[[field]], n - 14, n),
-                             format = "%Y%m%dT%H%M%S",
-                             tz = tz))
+
+            } else if (length(
+                       grep("^TZID",
+                            attr(ans[[field]], "parameters"),
+                            ignore.case = TRUE))) {
+                tz <- sub("TZID=([^;]+)", "\\1", attr(ans[[field]],"parameters"))
+                if (!tz %in% tz.names) {
+                    warning("Timezone not found: ", tz, ". Use current tz instead.")
+                    tz <- ""
+                }
+
+                ans[[field]] <- as.POSIXct(ans[[field]],
+                                           format = "%Y%m%dT%H%M%S",
+                                           tz = tz)
             }
         }
     }
@@ -411,11 +462,11 @@ allday_event <- function(date, summary, description = "", file) {
 
     DTSTART <- format(date, "%Y%m%d")
 
-    version <- packageVersion("ical.utils")
+    version <- packageVersion("icalutils")
 tmp <-
 "BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//enricoschumann.net/R/packages/ical.utils//NONSGML ical.utils {version}//EN
+PRODID:-//enricoschumann.net/R/packages/icalutils//NONSGML icalutils {version}//EN
 BEGIN:VEVENT
 UID:{UID}
 DTSTAMP:{DTSTAMP}
@@ -423,7 +474,8 @@ DTSTART;VALUE=DATE:{DTSTART}
 SUMMARY:{SUMMARY}
 DESCRIPTION:{DESCRIPTION}
 END:VEVENT
-END:VCALENDAR"
+END:VCALENDAR
+"
 
     tmp <- fill_in(tmp,
                    UID = UID,
@@ -462,4 +514,20 @@ END:VCALENDAR"
            floor(10000*as.numeric(Sys.time())))
     paste(c(ab[digits(n[1L], 36) + 1], ".",
             ab[digits(n[2L], 36) + 1]), sep = "", collapse="")
+}
+
+
+## copied from datetimeutils https://github.com/enricoschumann/datetimeutils
+year <- function(x, as.character = FALSE) {
+    if (as.character)
+        as.character(as.POSIXlt(x)$year + 1900)
+    else
+        as.POSIXlt(x)$year + 1900
+}
+
+month <- function(x, as.character = FALSE) {
+    if (as.character)
+        as.character(as.POSIXlt(x)$mon + 1)
+    else
+        as.POSIXlt(x)$mon + 1
 }
