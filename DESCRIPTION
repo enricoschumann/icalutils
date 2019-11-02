@@ -1,8 +1,8 @@
 Package: icalutils
 Type: Package
 Title: Read, Process and Create iCalendar Data and Files
-Version: 0.1-0
-Date: 2019-10-31
+Version: 0.2-0
+Date: 2019-11-02
 Authors@R: person("Enrico", "Schumann",
                   role  = c("aut", "cre"),
                   email = "es@enricoschumann.net",

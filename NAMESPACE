@@ -1,6 +1,8 @@
 export("read_icalendar",
        "read_vevent",
-       "read_vtimezone")
+       "read_vtimezone",
+       ".parse_rrule",
+       ".expand_rrule")
 
 importFrom("stats", "runif")
 importFrom("utils", "packageVersion")

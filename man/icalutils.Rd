@@ -66,8 +66,13 @@ read_vtimezone(file, ..., strict.eol = TRUE)
     logical. Applies only if return.class is data.frame
   }
   \item{timestamps.tz}{
-    character. Applies only if return.class is data.frame.
-    Default is \code{""}, which means to use the current timezone.
+
+    character. Applies only if return.class is
+    data.frame. This is used for local time: timestamps
+    that have no timezone information attached.
+    Default is \code{""}, which means to use the
+    current timezone.
+
   }
   \item{\dots}{
     additional arguments
@@ -75,14 +80,24 @@ read_vtimezone(file, ..., strict.eol = TRUE)
 }
 \details{
 
-  \code{read_icalendar} reads a file in ical format. It returns a list,
-  in which each entry contains one calendar component.
-  \code{read_vevent} and \code{read_vtimezone} work the same, but only
+  An icalendar file consist of one or more
+  calendars, each of which has one or more so-called
+  components such as events or journal entries. The
+  components in turn are composed of properties, such
+  as \sQuote{summary}. A property may parameters: a
+  \sQuote{summary}, for instance, may a parameter that
+  tells its \sQuote{language}.
+
+  \code{read_icalendar} reads a file in icalendar
+  format. It returns a list, in which each entry
+  contains one calendar component.  \code{read_vevent}
+  and \code{read_vtimezone} work the same, but only
   return events and timezones.
 
-  For \code{read_vevent}, the argument \code{return.class} may be set to
-  \code{data.frame}, which will result in a selection of properties of
-  the events; see Value section below.
+  For \code{read_vevent}, the argument
+  \code{return.class} may be set to \code{data.frame},
+  which will result in a selection of properties of the
+  events; see Value section below.
 
 }
 \value{
