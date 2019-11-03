@@ -49,11 +49,9 @@ read_vevent <- function(file, ...,
     cal <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", cal)
     cal <- strsplit(cal, "\r?\n")[[1]]
 
-
     ## RFC5545: VEVENTs cannot be nested
     begin <- grep("^BEGIN:VEVENT", cal)
     end <- grep("^END:VEVENT", cal)
-
 
     res <- list()
     if (use.OlsonNames)
@@ -66,38 +64,35 @@ read_vevent <- function(file, ...,
         res[[i]] <- .expand_properties(.properties(event),
                                        tz.names = tz.names)
     }
+
+
     if (return.class == "data.frame") {
-        uid <- unlist(lapply(res, `[[`, "UID"))
-        recurring <- unlist(lapply(res, function(x) "RRULE" %in% names(x)))
 
         start <- lapply(res, `[[`, "DTSTART")
         end <- lapply(res, `[[`, "DTEND")
+        all.day <- unlist(lapply(start, function(x) inherits(x, "Date")))
+
+        recurring <- unlist(lapply(res, function(x) "RRULE" %in% names(x)))
+        recurring.events <- list()
         if (recur.expand) {
             RRULE <- lapply(res[recurring], `[[`, "RRULE")
             for (r in seq_along(RRULE)) {
                 created <- .expand_rrule(start[recurring][[r]],
-                                      end  [recurring][[r]],
-                                      RRULE = RRULE[[r]],
-                                      UNTIL = recur.until,
-                                      COUNT = recur.count)
+                                         end  [recurring][[r]],
+                                         RRULE = RRULE[[r]],
+                                         UNTIL = recur.until,
+                                         COUNT = recur.count)
                 if (isFALSE(created))
                     message("cannot parse RRULE",
                             attr(RRULE[[r]], "RRULE"))
-
+                recurring.events[[r]] <- created
             }
         }
 
-        all.day <- unlist(lapply(start, function(x) inherits(x, "Date")))
-        start[all.day] <- lapply(start[all.day],
-                                 function(x) as.POSIXct(paste(x, "00:00:00"),
-                                                        tz = timestamps.tz))
-        start <- .POSIXct(unlist(start))
 
-        all.day <- unlist(lapply(end, function(x) inherits(x, "Date")))
-        end[all.day] <- lapply(end[all.day],
-                               function(x) as.POSIXct(paste(x, "00:00:00"),
-                                                      tz = timestamps.tz))
-        end <- .POSIXct(unlist(end))
+        uid <- lapply(res, `[[`, "UID")
+        uid <- unlist(lapply(uid,
+                                 function(x) if (is.null(x)) NA else x))
 
         summary <- lapply(res, `[[`, "SUMMARY")
         summary <- unlist(lapply(summary,
@@ -110,6 +105,20 @@ read_vevent <- function(file, ...,
         location <- lapply(res, `[[`, "LOCATION")
         location <- unlist(lapply(location,
                                   function(x) if (is.null(x)) NA else x))
+
+
+
+
+        start[all.day] <- lapply(start[all.day],
+                                 function(x) as.POSIXct(paste(x, "00:00:00"),
+                                                        tz = timestamps.tz))
+        start <- .POSIXct(unlist(start))
+
+        end[all.day] <- lapply(end[all.day],
+                               function(x) as.POSIXct(paste(x, "00:00:00"),
+                                                      tz = timestamps.tz))
+        end <- .POSIXct(unlist(end))
+
         res <- data.frame(uid,
                           summary,
                           description,
@@ -119,6 +128,22 @@ read_vevent <- function(file, ...,
                           all.day,
                           recurring,
                           stringsAsFactors = FALSE)
+        if (recur.expand) {
+            res <- cbind(res, uid.parent = NA_character_,
+                         stringsAsFactors = FALSE)
+            ri <- which(recurring)
+            for (r in seq_along(ri)) {
+                if (nrow(recurring.events[[r]]) == 1L)
+                    next
+                copy <- res[rep(ri[r], nrow(recurring.events[[r]])-1), ]
+                copy$start <- recurring.events[[r]]$DTSTART[-1]
+                copy$end <- recurring.events[[r]]$DTEND[-1]
+                copy$uid.parent  <- res$uid[1]
+                copy$uid <- NA
+                res <- rbind(res, copy)
+            }
+
+        }
     }
     res
 }
@@ -141,9 +166,9 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
 }
 
 .expand_rrule <- function(DTSTART, DTEND,
-                       RRULE, RDATE, EXDATE,
-                       UNTIL = NULL, COUNT = NULL,
-                       msg.violations = TRUE) {
+                          RRULE, RDATE, EXDATE,
+                          UNTIL = NULL, COUNT = NULL,
+                          msg.violations = TRUE) {
     RRULE.text <- attr(RRULE, "RRULE")
     FREQ <- toupper(RRULE$FREQ)
     if (is.null(RRULE$INTERVAL))
@@ -177,7 +202,10 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
         }
         message("no UNTIL specified: use ", UNTIL)
     }
-
+    if (DTSTART.isdate && inherits(UNTIL, "POSIXct"))
+        UNTIL <- as.Date(as.POSIXlt(UNTIL))
+    else if (!DTSTART.isdate && inherits(UNTIL, "Date"))
+        UNTIL <- as.POSIXct(as.POSIXlt(UNTIL))
     ## if (inherits(DTSTART, "DATE"))
     ##     UNTIL <- as.Date("2025-1-1")
     ## else if (inherits(DTSTART, "POSIXct"))
@@ -352,7 +380,7 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
         if        ( is.null(RRULE$BYSECOND)   &&
                     is.null(RRULE$BYMINUTE)   &&
                     is.null(RRULE$BYHOUR)     &&
-                    !is.null(RRULE$BYDAY)      &&
+                   !is.null(RRULE$BYDAY)      &&
                     is.null(RRULE$BYMONTHDAY) &&
                     is.null(RRULE$BYYEARDAY)  &&
                     is.null(RRULE$BYWEEKNO)   &&
@@ -380,6 +408,40 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
                                        start = as.Date(DTSTART),
                                        count = COUNT,
                                        interval = INTERVAL)
+                DTSTARTs <- as.POSIXct(paste(dates,
+                                             DTSTARTlt$hour,
+                                             DTSTARTlt$min,
+                                             DTSTARTlt$sec),
+                                       format = "%Y-%m-%d %H %M %S",
+                                       tzone = attr(DTSTART, "tzone"))
+
+                ## FIXME: the difference between DTSTART and DTEND
+                ## should be independent of timezone changes
+                DTENDs <- DTSTARTs + unclass(DTEND) - unclass(DTSTART)
+                ans <- data.frame(DTSTART = DTSTARTs,
+                                  DTEND = DTENDs)
+            }
+        }
+    } else if (FREQ == "DAILY") {
+        if        ( is.null(RRULE$BYSECOND)   &&
+                    is.null(RRULE$BYMINUTE)   &&
+                    is.null(RRULE$BYHOUR)     &&
+                    is.null(RRULE$BYDAY)      &&
+                    is.null(RRULE$BYMONTHDAY) &&
+                    is.null(RRULE$BYYEARDAY)  &&
+                    is.null(RRULE$BYWEEKNO)   &&
+                    is.null(RRULE$BYMONTH)    &&
+                    is.null(RRULE$BYSETPOS)   &&
+                    is.null(RRULE$WKST)) {
+
+            if (DTSTART.isdate) {
+                ans <- FALSE
+
+            } else {
+                if (is.null(COUNT))
+                    COUNT <- ceiling((as.numeric(UNTIL) - as.numeric(DTSTART))/(INTERVAL)/86400)
+
+                dates <- as.Date(DTSTART) + INTERVAL*(seq_len(COUNT)-1)
                 DTSTARTs <- as.POSIXct(paste(dates,
                                              DTSTARTlt$hour,
                                              DTSTARTlt$min,

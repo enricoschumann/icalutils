@@ -1,3 +1,10 @@
+2019-11-03  Enrico Schumann  <es@enricoschumann.net>
+
+	* R/icalutils.R (read_vevent): implement
+	'expansion' of recurring events: expand
+	recurrence rule of event and create copies of
+	event at those timestamps
+
 2019-11-02  Enrico Schumann  <es@enricoschumann.net>
 
 	* NAMESPACE: export '.parse_rrule', '.expand_rrule'

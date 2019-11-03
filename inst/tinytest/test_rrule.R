@@ -131,6 +131,8 @@ if ("Europe/Berlin" %in% OlsonNames()) {
 
 ## ------------------------------------------
 ## RRULE examples in RFC5545
-
 ## 3.3.10. : the last work day of the month
 ## FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1
+
+## 3.8.5.3.  Recurrence Rule
+## ---
