@@ -589,11 +589,19 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
                        grep("^TZID",
                             attr(ans[[field]], "parameters"),
                             ignore.case = TRUE))) {
-                tz <- sub("TZID=([^;]+)", "\\1", attr(ans[[field]],"parameters"))
-                if (!tz %in% tz.names) {
-                    warning("Timezone not found: ", tz, ". Use current tz instead.")
-                    tz <- ""
-                }
+                ## TZID may use double-quotes
+                tz <- sub('TZID="?([^;"]+)"?', "\\1", attr(ans[[field]],"parameters"))
+                if (!tz %in% tz.names)
+                    if (tz.i <- match(tz, .tznames$Windows, nomatch = 0)) {
+                        ## TODO collect such messages
+                        ## message("map timezone  ",
+                        ##         .tznames[["Windows"]][tz.i], " => ",
+                        ##         .tznames[["Olson"]][tz.i])
+                        tz <- .tznames[["Olson"]][tz.i]
+                    } else {
+                        warning("Timezone not found: ", tz, ". Using current tz instead.")
+                        tz <- ""
+                    }
 
                 ans[[field]] <- as.POSIXct(ans[[field]],
                                            format = "%Y%m%dT%H%M%S",

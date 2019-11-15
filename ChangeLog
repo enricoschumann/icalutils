@@ -1,3 +1,12 @@
+2019-11-15  Enrico Schumann  <es@enricoschumann.net>
+
+	* R/tznames.R: add support for Windows
+	timezones via an internal table '.tznames',
+	which provides the mappings of Windows
+	timezone names to Olson timezone names. The
+	table is build from data provided by the
+	Unicode CLDR.
+
 2019-11-03  Enrico Schumann  <es@enricoschumann.net>
 
 	* R/icalutils.R (read_vevent): implement

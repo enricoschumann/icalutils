@@ -79,7 +79,7 @@ read_vtimezone(file, ..., strict.eol = TRUE)
 }
 }
 \details{
-
+  
   An icalendar file consist of one or more
   calendars, each of which has one or more so-called
   components such as events or journal entries. The
@@ -99,6 +99,28 @@ read_vtimezone(file, ..., strict.eol = TRUE)
   which will result in a selection of properties of the
   events; see Value section below.
 
+  \subsection{Timezones}{
+
+    Timezone names, which include specific names when
+    daylight-saving time is in effect, are not portable
+    and may vary between systems. Thus, the icalender
+    specification requires that timezone information
+    (i.e. a mapping from a local time to an GMT offset)
+    must be included in the file.
+
+    In the current implementation, this information is
+    not used. Instead, \pkg{icalutils} uses \R{}'s
+    (very good) timezone support (see
+    \code{\link{timezones}}) and maps datetimes with a
+    timezone attribute to the timezone with the same
+    name in the Olsen database. This clean and
+    transparent approach will not work on Windows (of
+    course not). Thus, Windows timezone names (such as
+    the infamous \emph{Romance time} for Paris) are
+    mapped to Olsen names via data provided by the
+    Unicode consortium.    
+    
+  }
 }
 \value{
 
