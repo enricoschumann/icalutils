@@ -4,6 +4,8 @@
 \alias{read_icalendar}
 \alias{read_vevent}
 \alias{read_vtimezone}
+\alias{as.data.frame.icalutils_vevent}
+
 \title{
   Read and Create iCalendar Data
 }
@@ -11,19 +13,19 @@
   Read and create iCalendar data
 }
 \usage{
-read_icalendar(file, ...)
-read_vevent(file, ...,
-            strict.eol = TRUE,
-            adjust.allday = TRUE,
-            return.class = "list",
-            recur.expand = FALSE,
-            recur.until = NULL,
-            recur.count = NULL,
-            use.OlsonNames = TRUE,
-            timestamps.POSIXct = TRUE,
-            timestamps.Date = FALSE,
-            timestamps.tz = "")
+read_vevent(file, strict.eol = TRUE, use.OlsonNames = TRUE, ...)
 read_vtimezone(file, ..., strict.eol = TRUE)
+
+\method{as.data.frame}{icalutils_vevent}(x, row.names = NULL, optional = FALSE,
+              adjust.allday = TRUE,
+              recur.expand = FALSE,
+              recur.until = NULL,
+              recur.count = NULL,
+              use.OlsonNames = TRUE,
+              all.timestamps.POSIXct = TRUE,
+              all.timestamps.Date = FALSE,
+              timestamps.tz = "",
+              \dots)
 }
 \arguments{
   \item{file}{
@@ -40,9 +42,6 @@ read_vtimezone(file, ..., strict.eol = TRUE)
     format.
 
 
-  }
-  \item{return.class}{
-    character: currently list and data.frame are supported
   }
   \item{recur.expand}{
     logical
@@ -143,7 +142,14 @@ read_vtimezone(file, ..., strict.eol = TRUE)
 
 }
 \references{
-  RFC 5545 \url{https://tools.ietf.org/html/rfc5545}
+
+  For the icalendar standard see \acronym{RFC} 5545
+  \url{https://tools.ietf.org/html/rfc5545}
+
+  The mappings from Windows timezone names to Olson
+  names are taken from the Unicode Common Locale Data
+  Repository (\url{http://cldr.unicode.org/}).
+  
 }
 \author{
   Enrico Schumann

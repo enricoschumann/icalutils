@@ -27,23 +27,10 @@
     paste(unlist(vcal), collapse = "")
 }
 
-read_icalendar <- function(file, ...) {
-    c(read_vevent(file),
-      read_vtimezone(file))
-}
-
-read_vevent <- function(file, ...,
+read_vevent <- function(file,
                         strict.eol = TRUE,
-                        adjust.allday = TRUE,
-                        return.class = "list",
-                        recur.expand = FALSE,
-                        recur.until = NULL,
-                        recur.count = NULL,
                         use.OlsonNames = TRUE,
-                        timestamps.POSIXct = TRUE,
-                        timestamps.Date = FALSE,
-                        timestamps.tz = "") {
-
+                        ...) {
 
     cal <- .read_one_line(file)
     cal <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", cal)
@@ -53,99 +40,122 @@ read_vevent <- function(file, ...,
     begin <- grep("^BEGIN:VEVENT", cal)
     end <- grep("^END:VEVENT", cal)
 
-    res <- list()
     if (use.OlsonNames)
         tz.names <- OlsonNames()
     else
         tz.names <- character(0)
 
+    res <- list()
     for (i in seq_along(begin)) {
         event <- cal[seq(begin[i] + 1, end[i] - 1)]
         res[[i]] <- .expand_properties(.properties(event),
                                        tz.names = tz.names)
     }
+    class(res) <- c("icalutils_vevent")
+    res
+}
 
+as.data.frame.icalutils_vevent <-
+function(x,
+         row.names = NULL,
+         optional = FALSE,
+         adjust.allday = TRUE,
+         recur.expand = FALSE,
+         recur.until = NULL,
+         recur.count = NULL,
+         use.OlsonNames = TRUE,
+         all.timestamps.POSIXct = TRUE,
+         all.timestamps.Date = FALSE,
+         timestamps.tz = "",
+         ...) {
 
-    if (return.class == "data.frame") {
+    res.df <- data.frame()
+    fields <- c("UID", "SUMMARY", "DESCRIPTION", "LOCATION")
+    for (f in fields) {
+        tmp <- lapply(x, `[[`, f)
+        if (f == fields[1L])
+            res.df <- data.frame(unlist(
+                lapply(tmp, function(x) if (is.null(x)) NA else x)),
+                stringsAsFactors = FALSE)
+        else
+            res.df <- cbind(res.df,
+                            unlist(
+                                lapply(tmp, function(x) if (is.null(x)) NA else x)),
+                            stringsAsFactors = FALSE)
+    }
+    names(res.df) <- tolower(fields)
 
-        start <- lapply(res, `[[`, "DTSTART")
-        end <- lapply(res, `[[`, "DTEND")
-        all.day <- unlist(lapply(start, function(x) inherits(x, "Date")))
+    start <- lapply(x, function(x) if (is.null(x[["DTSTART"]])) NA else x[["DTSTART"]])
+    end   <- lapply(x, function(x) if (is.null(x[["DTEND"]]))   NA else x[["DTEND"]])
 
-        recurring <- unlist(lapply(res, function(x) "RRULE" %in% names(x)))
+    all.day <- unlist(lapply(start, function(x) inherits(x, "Date")))
+    res.df <- cbind(res.df, all.day = all.day, stringsAsFactors = FALSE)
+
+    if (adjust.allday)
+        end[all.day] <- lapply(end[all.day], function(x) x[[1]] -1)
+
+    recurring <- unlist(lapply(x, function(x) "RRULE" %in% names(x)))
+    res.df <- cbind(res.df, recurring = recurring, stringsAsFactors = FALSE)
+
+    ## compute recurrances from original _start_ and _end_
+    ## but allow for all.day adjustments
+    if (recur.expand) {
         recurring.events <- list()
-        if (recur.expand) {
-            RRULE <- lapply(res[recurring], `[[`, "RRULE")
-            for (r in seq_along(RRULE)) {
-                created <- .expand_rrule(start[recurring][[r]],
-                                         end  [recurring][[r]],
-                                         RRULE = RRULE[[r]],
-                                         UNTIL = recur.until,
-                                         COUNT = recur.count)
-                if (isFALSE(created))
-                    message("cannot parse RRULE",
-                            attr(RRULE[[r]], "RRULE"))
-                recurring.events[[r]] <- created
-            }
+        RRULE <- lapply(x[recurring], `[[`, "RRULE")
+        for (r in seq_along(RRULE)) {
+            created <- .expand_rrule(start[recurring][[r]],
+                                     end  [recurring][[r]],
+                                     RRULE = RRULE[[r]],
+                                     UNTIL = recur.until,
+                                     COUNT = recur.count)
+            if (isFALSE(created))
+                message("cannot parse RRULE",
+                        attr(RRULE[[r]], "RRULE"))
+            recurring.events[[r]] <- created
         }
+    }
 
-
-        uid <- lapply(res, `[[`, "UID")
-        uid <- unlist(lapply(uid,
-                                 function(x) if (is.null(x)) NA else x))
-
-        summary <- lapply(res, `[[`, "SUMMARY")
-        summary <- unlist(lapply(summary,
-                                 function(x) if (is.null(x)) NA else x))
-
-        description <- lapply(res, `[[`, "DESCRIPTION")
-        description <- unlist(lapply(description,
-                                     function(x) if (is.null(x)) NA else x))
-
-        location <- lapply(res, `[[`, "LOCATION")
-        location <- unlist(lapply(location,
-                                  function(x) if (is.null(x)) NA else x))
-
-
-
+    if (all.timestamps.POSIXct) {
 
         start[all.day] <- lapply(start[all.day],
                                  function(x) as.POSIXct(paste(x, "00:00:00"),
                                                         tz = timestamps.tz))
         start <- .POSIXct(unlist(start))
-
         end[all.day] <- lapply(end[all.day],
                                function(x) as.POSIXct(paste(x, "00:00:00"),
                                                       tz = timestamps.tz))
         end <- .POSIXct(unlist(end))
 
-        res <- data.frame(uid,
-                          summary,
-                          description,
-                          location,
-                          start,
-                          end,
-                          all.day,
-                          recurring,
-                          stringsAsFactors = FALSE)
-        if (recur.expand) {
-            res <- cbind(res, uid.parent = NA_character_,
-                         stringsAsFactors = FALSE)
-            ri <- which(recurring)
-            for (r in seq_along(ri)) {
-                if (nrow(recurring.events[[r]]) == 1L)
-                    next
-                copy <- res[rep(ri[r], nrow(recurring.events[[r]])-1), ]
-                copy$start <- recurring.events[[r]]$DTSTART[-1]
-                copy$end <- recurring.events[[r]]$DTEND[-1]
-                copy$uid.parent  <- res$uid[1]
-                copy$uid <- NA
-                res <- rbind(res, copy)
-            }
+        res.df <- cbind(res.df, start = start, end = end,
+                        stringsAsFactors = FALSE)
 
+
+    } else if (all.timestamps.Date) {
+        message ("not implemented")
+    } else {
+        message ("not implemented")
+        ## TODO create two columns
+    }
+
+
+
+    ## with all fields filled, add recurrances
+    if (recur.expand) {
+        res.df <- cbind(res.df, uid.parent = NA_character_,
+                        stringsAsFactors = FALSE)
+        ri <- which(recurring)
+        for (r in seq_along(ri)) {
+            if (nrow(recurring.events[[r]]) == 1L)
+                next
+            copy <- res.df[rep(ri[r], nrow(recurring.events[[r]])-1), ]
+            copy$start <- recurring.events[[r]]$DTSTART[-1]
+            copy$end <- recurring.events[[r]]$DTEND[-1]
+            copy$uid.parent  <- res.df$uid[1]
+            copy$uid <- NA
+            res.df <- rbind(res.df, copy)
         }
     }
-    res
+    res.df
 }
 
 read_vtimezone <- function(file, ..., strict.eol = TRUE) {
@@ -178,15 +188,17 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
     DTSTARTlt <- as.POSIXlt(DTSTART)
 
 
-
     if (!is.null(RRULE$UNTIL)) {
-        UNTIL <- RRULE$UNTIL
+
+        ## use UNTIL if UNTIL is 1) specified and 2) smaller than RRULE$UNTIL,
+        if (!(!is.null(UNTIL) && as.POSIXct(UNTIL) < as.POSIXct(RRULE$UNTIL)))
+            UNTIL <- RRULE$UNTIL
         if (!class(DTSTART) %in% class(UNTIL) && msg.violations) {
             message("DTSTART and UNTIL are not of the same type [3.3.10.]")
             if (!inherits(DTSTART, "Date"))
                 UNTIL <- as.Date(UNTIL)
         }
-    } else if (!is.null(RRULE$COUNT)) {
+    } else if (is.null(COUNT) && !is.null(RRULE$COUNT)) {
         COUNT <- RRULE$COUNT
     } else if (is.null(RRULE$UNTIL) &&
                is.null(RRULE$COUNT) &&
@@ -469,7 +481,7 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
 
 .next_weekday <- function(wday, start, count = 1, interval = 1)
     start + wday - unclass(start + 4) %% 7 +
-        interval*7L*(seq_len(count) - 1L)
+        rep(interval*7L*(seq_len(count) - 1L), each=length(wday))
 
 
 .utc_dt <- function(s, ...) {
@@ -720,3 +732,8 @@ month <- function(x, as.character = FALSE) {
 mday <- function(x) {
     as.POSIXlt(x)$mday
 }
+
+## TODO no default => .default must raise error
+to_vevent <- function(x, ...)
+    UseMethod("aggregate")
+

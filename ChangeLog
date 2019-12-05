@@ -1,33 +1,41 @@
+2019-12-05  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/functions.R (read_vevent): add
+        as.data.frame method for object returned by
+        read_event.
+        * R/functions.R (read_icalendar): remove function.
+        Use as.data.frame(read_vevent(<file>)) instead.
+
 2019-11-15  Enrico Schumann  <es@enricoschumann.net>
 
-	* R/tznames.R: add support for Windows
-	timezones via an internal table '.tznames',
-	which provides the mappings of Windows
-	timezone names to Olson timezone names. The
-	table is build from data provided by the
-	Unicode CLDR.
+        * R/tznames.R: add support for Windows
+        timezones via an internal table '.tznames',
+        which provides the mappings of Windows
+        timezone names to Olson timezone names. The
+        table is build from data provided by the
+        Unicode CLDR.
 
 2019-11-03  Enrico Schumann  <es@enricoschumann.net>
 
-	* R/icalutils.R (read_vevent): implement
-	'expansion' of recurring events: expand
-	recurrence rule of event and create copies of
-	event at those timestamps
+        * R/icalutils.R (read_vevent): implement
+        'expansion' of recurring events: expand
+        recurrence rule of event and create copies of
+        event at those timestamps
 
 2019-11-02  Enrico Schumann  <es@enricoschumann.net>
 
-	* NAMESPACE: export '.parse_rrule', '.expand_rrule'
+        * NAMESPACE: export '.parse_rrule', '.expand_rrule'
 
 2019-10-31  Enrico Schumann  <es@enricoschumann.net>
 
-	* DESCRIPTION: Version: 0.1-0
+        * DESCRIPTION: Version: 0.1-0
 
         * R/icalutils.R (read_vevent): new argument
-	'use.OlsonNames'. If TRUE (the default),
-	timezones are looked up in the names retured by
-	OlsonNames(). The default may change in the
-	future, when timezone information provided by
-	the ical file is used.
+        'use.OlsonNames'. If TRUE (the default),
+        timezones are looked up in the names retured by
+        OlsonNames(). The default may change in the
+        future, when timezone information provided by
+        the ical file is used.
 
 2019-10-28  Enrico Schumann  <es@enricoschumann.net>
 

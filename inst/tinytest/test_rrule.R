@@ -1,3 +1,7 @@
+## Sys.setenv("_R_CHECK_LENGTH_1_CONDITION_" = TRUE)
+## library("icalutils")
+## library("tinytest")
+
 ## .local_time <- function(s) {
 ##     ans <- as.POSIXct(s,
 ##                       format = "%Y%m%dT%H%M%S", tz = "UTC")
@@ -107,8 +111,7 @@ if ("Europe/Berlin" %in% OlsonNames()) {
     DTSTART <- as.POSIXct("20181022T134500", format = "%Y%m%dT%H%M%S", tz = "Europe/Berlin")
     DTEND <- as.POSIXct("20181022T152000", format = "%Y%m%dT%H%M%S", tz = "Europe/Berlin")
     RRULE <- .parse_rrule("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO;UNTIL=20190624T114500Z")
-    ans <- .expand_rrule(DTSTART=DTSTART, DTEND=DTEND, RRULE=RRULE[[1]],
-                         UNTIL = as.POSIXct("2017-11-1"))
+    ans <- .expand_rrule(DTSTART=DTSTART, DTEND=DTEND, RRULE=RRULE[[1]])
     expect_true(inherits(ans, "data.frame"))
     expect_equal(colnames(ans), c("DTSTART", "DTEND"))
 
@@ -122,7 +125,6 @@ if ("Europe/Berlin" %in% OlsonNames()) {
                                                                                                                                                              1549894800, 1551104400, 1552314000, 1553523600, 1554729600, 1555939200,
                                                                                                                                                              1557148800, 1558358400, 1559568000, 1560777600), tzone = "Europe/Berlin", class = c("POSIXct",
                                                                                                                                                                                                                                                  "POSIXt"))), class = "data.frame", row.names = c(NA, -18L)))
-
 
 }
 

@@ -1,10 +1,12 @@
-export("read_icalendar",
-       "read_vevent",
-       "read_vtimezone",
-       ".parse_rrule",
-       ".expand_rrule")
+export(
+    "read_vevent",
+    "read_vtimezone",
+    ".parse_rrule",
+    ".expand_rrule")
 
 importFrom("stats", "runif")
 importFrom("utils", "packageVersion")
 
 importFrom("textutils", "fill_in")
+
+S3method("as.data.frame", "icalutils_vevent")
