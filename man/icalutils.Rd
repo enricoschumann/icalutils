@@ -13,8 +13,10 @@
   Read and create iCalendar data
 }
 \usage{
-read_vevent(file, strict.eol = TRUE, use.OlsonNames = TRUE, ...)
-read_vtimezone(file, ..., strict.eol = TRUE)
+read_vevent(file, strict.eol = TRUE,
+            use.OlsonNames = TRUE,
+            uid.names =  FALSE, ...)
+read_vtimezone(file, strict.eol = TRUE, ...)
 
 \method{as.data.frame}{icalutils_vevent}(x, row.names = NULL, optional = FALSE,
               adjust.allday = TRUE,
@@ -58,10 +60,15 @@ read_vtimezone(file, ..., strict.eol = TRUE)
     by \code{\link{OlsonNames}}?
 
   }
-  \item{timestamps.POSIXct}{
+  \item{uid.names}{
+    logical: use \code{UID} values as names for the resulting list?
+    Careful on Windows: \code{UID}s are often insanely long.
+    
+  }
+  \item{all.timestamps.POSIXct}{
     logical. Applies only if return.class is data.frame
   }
-  \item{timestamps.Date}{
+  \item{all.timestamps.Date}{
     logical. Applies only if return.class is data.frame
   }
   \item{timestamps.tz}{
@@ -75,7 +82,16 @@ read_vtimezone(file, ..., strict.eol = TRUE)
   }
   \item{\dots}{
     additional arguments
-}
+  }
+  \item{x}{
+    a list with class attribute \code{icalutils_vevent}
+  }
+  \item{row.names}{
+    see \code{\link{as.data.frame}}
+  }
+  \item{optional}{
+    see \code{\link{as.data.frame}}
+  }
 }
 \details{
   
@@ -97,6 +113,15 @@ read_vtimezone(file, ..., strict.eol = TRUE)
   \code{return.class} may be set to \code{data.frame},
   which will result in a selection of properties of the
   events; see Value section below.
+
+  \subsection{Dates and times}{
+
+    icalendar files have three types to describes
+    timestamps: dates, datetimes with a timezone
+    attribute and datetimes without a timezone
+    attribute.
+    
+  }
 
   \subsection{Timezones}{
 

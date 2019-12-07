@@ -13,7 +13,10 @@
 
 .fold <- function(s) {}
 
-.unfold <- function(s, strict.eol) {}
+.unfold <- function(s, strict.eol) {
+    s <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", s)
+    strsplit(s, "\r?\n")[[1L]]
+}
 
 .read_one_line <- function(filename, nchars = 200) {
     zz <- file(filename, "rb")
@@ -27,14 +30,15 @@
     paste(unlist(vcal), collapse = "")
 }
 
-read_vevent <- function(file,
-                        strict.eol = TRUE,
-                        use.OlsonNames = TRUE,
-                        ...) {
+read_vevent <-
+function(file,
+         strict.eol = TRUE,
+         use.OlsonNames = TRUE,
+         uid.names = FALSE,
+         ...) {
 
     cal <- .read_one_line(file)
-    cal <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", cal)
-    cal <- strsplit(cal, "\r?\n")[[1]]
+    cal <- .unfold(cal, strict.eol)
 
     ## RFC5545: VEVENTs cannot be nested
     begin <- grep("^BEGIN:VEVENT", cal)
@@ -51,6 +55,8 @@ read_vevent <- function(file,
         res[[i]] <- .expand_properties(.properties(event),
                                        tz.names = tz.names)
     }
+    if (uid.names)
+        names(res) <- sapply(res, function(x) if (is.null(x[["UID"]])) NA else x[["UID"]])
     class(res) <- c("icalutils_vevent")
     res
 }
@@ -139,7 +145,7 @@ function(x,
 
 
 
-    ## with all fields filled, add recurrances
+    ## with all fields filled, add recurrences
     if (recur.expand) {
         res.df <- cbind(res.df, uid.parent = NA_character_,
                         stringsAsFactors = FALSE)
@@ -158,10 +164,10 @@ function(x,
     res.df
 }
 
-read_vtimezone <- function(file, ..., strict.eol = TRUE) {
+read_vtimezone <-
+function(file, strict.eol = TRUE, ...) {
     cal <- .read_one_line(file)
-    cal <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", cal)
-    cal <- strsplit(cal, "\r?\n")[[1]]
+    cal <- .unfold(cal, strict.eol)
 
     ## rfc5545: VTIMEZONE cannot be nested
     begin <- grep("^BEGIN:VTIMEZONE", cal)
@@ -175,10 +181,12 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
     res
 }
 
-.expand_rrule <- function(DTSTART, DTEND,
-                          RRULE, RDATE, EXDATE,
-                          UNTIL = NULL, COUNT = NULL,
-                          msg.violations = TRUE) {
+.expand_rrule <-
+function(DTSTART, DTEND,
+         RRULE, RDATE, EXDATE,
+         UNTIL = NULL, COUNT = NULL,
+         msg.violations = TRUE) {
+
     RRULE.text <- attr(RRULE, "RRULE")
     FREQ <- toupper(RRULE$FREQ)
     if (is.null(RRULE$INTERVAL))
@@ -187,6 +195,7 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
     DTSTART.isdate <- inherits(DTSTART, "Date")
     DTSTARTlt <- as.POSIXlt(DTSTART)
 
+    violations <- NULL
 
     if (!is.null(RRULE$UNTIL)) {
 
@@ -195,6 +204,8 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
             UNTIL <- RRULE$UNTIL
         if (!class(DTSTART) %in% class(UNTIL) && msg.violations) {
             message("DTSTART and UNTIL are not of the same type [3.3.10.]")
+            violations <- c(violations,
+                            "DTSTART and UNTIL are not of the same type [RFC 5545, 3.3.10.]")
             if (!inherits(DTSTART, "Date"))
                 UNTIL <- as.Date(UNTIL)
         }
@@ -471,6 +482,9 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
     }
 
     ## TODO: remove EXDATEs
+
+
+    attr(ans, "rfc.violations") <- violations
     ans
 
 }
@@ -542,8 +556,6 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
             tmp <- as.numeric(tmp)
             x[["BYMONTHDAY"]] <- tmp
         }
-
-
 
         x
     })
@@ -634,9 +646,9 @@ read_vtimezone <- function(file, ..., strict.eol = TRUE) {
 }
 
 ical_structure <- function(file, ..., strict.eol = TRUE) {
+
     cal <- .read_one_line(file)
-    cal <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", cal)
-    cal <- strsplit(cal, "\r?\n")[[1]]
+    cal <- .unfold(cal, strict.eol)
 
     n <- length(cal)
     component <- character(n)
@@ -721,17 +733,14 @@ END:VCALENDAR
 
 
 ## copied from datetimeutils https://github.com/enricoschumann/datetimeutils
-year <- function(x, as.character = FALSE) {
+year <- function(x)
     as.POSIXlt(x)$year + 1900
-}
 
-month <- function(x, as.character = FALSE) {
+month <- function(x)
     as.POSIXlt(x)$mon + 1
-}
 
-mday <- function(x) {
+mday <- function(x)
     as.POSIXlt(x)$mday
-}
 
 ## TODO no default => .default must raise error
 to_vevent <- function(x, ...)
