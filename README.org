@@ -1,0 +1,59 @@
+#+TITLE: Read, Process and Create iCalendar Data and Files
+#+AUTHOR: Enrico Schumann
+
+Utilities for handling icalendar data. The package is
+written in pure R, with no strict dependencies (package
+'base64enc' is only needed if calendar files have
+attachments). The package maps iCalendar dates and
+date-times to R's native 'Date' and 'POSIXct' classes.
+Recurring items can be expanded.  Timezones are
+supported.
+
+* Installation
+
+To install the package from a running R session, type:
+#+BEGIN_SRC R :eval never
+  install.packages('icalutils, type = 'source',
+                   repos = c('http://enricoschumann.net/R',
+                             getOption('repos')))
+#+END_SRC
+
+or clone/build the GitHub version.
+
+* Examples
+
+#+BEGIN_SRC R :results output :exports both :session **R**
+  library("icalutils")
+  as.data.frame(read_vevent("/path/to/file"))
+#+END_SRC
+
+Computing recurring events (such as birthdays):
+
+#+BEGIN_SRC R :results output :exports both :session **R**
+  as.data.frame(read_vevent("/path/to/file"), 
+                recur.expand = TRUE,
+                recur.until = Sys.Date + 30) ## events in next 30 days
+#+END_SRC
+
+Recurrence sets can be computed with function =rrule=.
+
+#+BEGIN_SRC R :results output :exports both :session **R**
+rrule(dtstart = as.Date("2019-12-01"),
+      dtend   = as.Date("2019-12-01"),
+      freq = "yearly",
+      count = 5)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+$text
+[1] "FREQ=yearly;COUNT=5;INTERVAL=1"
+
+$recurrence_set
+     DTSTART      DTEND
+1 2019-12-01 2019-12-01
+2 2020-12-01 2020-12-01
+3 2021-12-01 2021-12-01
+4 2022-12-01 2022-12-01
+5 2023-12-01 2023-12-01
+#+end_example
