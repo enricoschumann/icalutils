@@ -5,6 +5,7 @@
 \alias{read_vevent}
 \alias{read_vtimezone}
 \alias{as.data.frame.icalutils_vevent}
+\alias{rrule}
 
 \title{
   Read and Create iCalendar Data
@@ -28,6 +29,14 @@ read_vtimezone(file, strict.eol = TRUE, ...)
               all.timestamps.Date = FALSE,
               timestamps.tz = "",
               \dots)
+
+rrule(dtstart, dtend, freq,
+      until = NULL, count = NULL,
+      interval = 1,
+      bysecond = NULL, byminute = NULL, byhour = NULL,
+      byday = NULL, bymonthday = NULL, byyearday = NULL,
+      byweekno = NULL, bymonth = NULL, bysetpos = NULL,
+      wkst = NULL, rdate = NULL, exdate = NULL, text = NULL)
 }
 \arguments{
   \item{file}{
@@ -42,7 +51,6 @@ read_vtimezone(file, strict.eol = TRUE, ...)
     If an all-day event ends on a given day,
     its end is stored as the next day in the icalendar
     format.
-
 
   }
   \item{recur.expand}{
@@ -63,7 +71,7 @@ read_vtimezone(file, strict.eol = TRUE, ...)
   \item{uid.names}{
     logical: use \code{UID} values as names for the resulting list?
     Careful on Windows: \code{UID}s are often insanely long.
-    
+
   }
   \item{all.timestamps.POSIXct}{
     logical. Applies only if return.class is data.frame
@@ -92,35 +100,98 @@ read_vtimezone(file, strict.eol = TRUE, ...)
   \item{optional}{
     see \code{\link{as.data.frame}}
   }
+
+  \item{dtstart}{
+    \code{\link{Date}} or \code{\link{POSIXct}}
+  }
+  \item{dtend}{
+    \code{\link{Date}} or \code{\link{POSIXct}}
+}
+  \item{freq}{
+
+    a character string: \code{SECONDLY}, \code{MINUTELY}, \code{HOURLY},
+    \code{DAILY}, \code{WEEKLY}, \code{MONTHLY}, or \code{YEARLY}
+
+  }
+  \item{until}{
+    \code{\link{Date}} or \code{\link{POSIXct}}
+}
+  \item{count}{
+    integer
+}
+  \item{interval}{
+    integer. Default is 1.
+}
+  \item{bysecond}{
+
+    a vector of integers between 0 and 60 (though 60 will be changed to
+    59, to comply with the POSIX standard)
+
+}
+  \item{byminute}{
+    a vector of integers
+}
+  \item{byhour}{
+    a vector of integers
+  }
+  \item{byday}{
+    a list
+  }
+  \item{bymonthday}{
+    a vector of integers
+  }
+  \item{byyearday}{
+    a vector of integers
+  }
+  \item{byweekno}{
+    a vector of integers
+  }
+  \item{bymonth}{
+    a vector of integers
+  }
+  \item{bysetpos}{
+    a vector of integers
+  }
+  \item{wkst}{
+    character
+  }
+  \item{rdate}{
+    \code{\link{Date}} or \code{\link{POSIXct}}
+  }
+  \item{exdate}{
+    \code{\link{Date}} or \code{\link{POSIXct}}
+  }
+  \item{text}{
+    the text of the RRULE as used in an icalendar file
+  }
 }
 \details{
-  
-  An icalendar file consist of one or more
-  calendars, each of which has one or more so-called
-  components such as events or journal entries. The
-  components in turn are composed of properties, such
-  as \sQuote{summary}. A property may parameters: a
-  \sQuote{summary}, for instance, may a parameter that
-  tells its \sQuote{language}.
 
-  \code{read_icalendar} reads a file in icalendar
-  format. It returns a list, in which each entry
-  contains one calendar component.  \code{read_vevent}
-  and \code{read_vtimezone} work the same, but only
-  return events and timezones.
+  An icalendar file consist of one or more calendars, each
+  of which has one or more so-called components such as
+  events or journal entries. The components in turn are
+  composed of properties, such as \sQuote{summary}. A
+  property may have parameters: a \sQuote{summary}, for
+  instance, may have a parameter that tells its
+  \sQuote{language}.
 
-  For \code{read_vevent}, the argument
-  \code{return.class} may be set to \code{data.frame},
-  which will result in a selection of properties of the
-  events; see Value section below.
+  \code{read_vevent} reads a file in icalendar format. It
+  returns a list, in which each entry contains one
+  event. \code{read_vtimezone} works the same, but returns
+  only timezone components.
+
+  For \code{read_vevent}, an \link{as.data.frame} method is
+  available, which returns a \code{\link{data.frame}} of a
+  selection of properties of the events; see Value section
+  below.
 
   \subsection{Dates and times}{
 
-    icalendar files have three types to describes
-    timestamps: dates, datetimes with a timezone
-    attribute and datetimes without a timezone
-    attribute.
-    
+    icalendar files have three ways to describe timestamps:
+    dates, datetimes with timezone information (which
+    includes UTC times) and datetimes without timezone
+    information.
+
   }
 
   \subsection{Timezones}{
@@ -142,18 +213,17 @@ read_vtimezone(file, strict.eol = TRUE, ...)
     course not). Thus, Windows timezone names (such as
     the infamous \emph{Romance time} for Paris) are
     mapped to Olsen names via data provided by the
-    Unicode consortium.    
-    
+    Unicode consortium.
+
   }
 }
 \value{
 
-  a \code{\link{list}} of lists: one list for every (top-level)
-  component of the iCalendar object (i.e. VEVENTs, VTIMEZONEs,
-  VJOURNALs, etc.).
-
-  \code{return.class} may be set to \code{\link{data.frame}}, which will
-  contain for all VEVENTs
+  For \code{read_vevent}, a \code{\link{list}} of lists: one
+  list for every VEVENT component of the iCalendar
+  object. If coerced to a data.frame, the following columns
+  are present. Additional columns may be added later; so
+  columns should always be addressed by name, not by position.
 
     \item{\code{uid}}{field value}
     \item{\code{summary}}{field value}
@@ -174,7 +244,7 @@ read_vtimezone(file, strict.eol = TRUE, ...)
   The mappings from Windows timezone names to Olson
   names are taken from the Unicode Common Locale Data
   Repository (\url{http://cldr.unicode.org/}).
-  
+
 }
 \author{
   Enrico Schumann
@@ -186,4 +256,18 @@ read_vtimezone(file, strict.eol = TRUE, ...)
 \donttest{
     read_vevent("calendar.ics")
 }
+rrule(dtstart = as.Date("2019-01-01"),
+      dtend =   as.Date("2019-01-05"),
+      freq = "yearly", count = 5)
+## $text
+## [1] "FREQ=yearly;COUNT=5;INTERVAL=1"
+##
+## $recurrence_set
+##      DTSTART      DTEND
+## 1 2019-01-01 2019-01-05
+## 2 2020-01-01 2020-01-05
+## 3 2021-01-01 2021-01-05
+## 4 2022-01-01 2022-01-05
+## 5 2023-01-01 2023-01-05
+
 }

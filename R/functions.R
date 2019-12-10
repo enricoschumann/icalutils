@@ -44,6 +44,10 @@ function(file,
     begin <- grep("^BEGIN:VEVENT", cal)
     end <- grep("^END:VEVENT", cal)
 
+    ## TODO: text operations
+
+    cal <- .properties(cal)
+
     if (use.OlsonNames)
         tz.names <- OlsonNames()
     else
@@ -52,8 +56,7 @@ function(file,
     res <- list()
     for (i in seq_along(begin)) {
         event <- cal[seq(begin[i] + 1, end[i] - 1)]
-        res[[i]] <- .expand_properties(.properties(event),
-                                       tz.names = tz.names)
+        res[[i]] <- .expand_properties(event, tz.names = tz.names)
     }
     if (uid.names)
         names(res) <- sapply(res, function(x) if (is.null(x[["UID"]])) NA else x[["UID"]])
@@ -98,7 +101,7 @@ function(x,
     res.df <- cbind(res.df, all.day = all.day, stringsAsFactors = FALSE)
 
     if (adjust.allday)
-        end[all.day] <- lapply(end[all.day], function(x) x[[1]] -1)
+        end[all.day] <- lapply(end[all.day], function(x) x[[1L]] - 1)
 
     recurring <- unlist(lapply(x, function(x) "RRULE" %in% names(x)))
     res.df <- cbind(res.df, recurring = recurring, stringsAsFactors = FALSE)
@@ -109,6 +112,9 @@ function(x,
         recurring.events <- list()
         RRULE <- lapply(x[recurring], `[[`, "RRULE")
         for (r in seq_along(RRULE)) {
+            ## if ("EXDATE" %in% names(x[recurring][[r]]))
+            ##     browser()
+
             created <- .expand_rrule(start[recurring][[r]],
                                      end  [recurring][[r]],
                                      RRULE = RRULE[[r]],
@@ -144,19 +150,18 @@ function(x,
     }
 
 
-
     ## with all fields filled, add recurrences
     if (recur.expand) {
         res.df <- cbind(res.df, uid.parent = NA_character_,
                         stringsAsFactors = FALSE)
         ri <- which(recurring)
         for (r in seq_along(ri)) {
-            if (nrow(recurring.events[[r]]) == 1L)
+            if (nrow(recurring.events[[r]]) <= 1L)
                 next
             copy <- res.df[rep(ri[r], nrow(recurring.events[[r]])-1), ]
-            copy$start <- recurring.events[[r]]$DTSTART[-1]
-            copy$end <- recurring.events[[r]]$DTEND[-1]
-            copy$uid.parent  <- res.df$uid[1]
+            copy$start <- recurring.events[[r]]$DTSTART[-1L]
+            copy$end <- recurring.events[[r]]$DTEND[-1L]
+            copy$uid.parent  <- res.df$uid[1L]
             copy$uid <- NA
             res.df <- rbind(res.df, copy)
         }
@@ -223,7 +228,7 @@ function(DTSTART, DTEND,
         else {
             UNTIL <- as.POSIXct(Sys.Date() + 365*5)
         }
-        message("no UNTIL specified: use ", UNTIL)
+        message("no UNTIL/COUNT specified: repeat until ", UNTIL)
     }
     if (DTSTART.isdate && inherits(UNTIL, "POSIXct"))
         UNTIL <- as.Date(as.POSIXlt(UNTIL))
@@ -249,7 +254,10 @@ function(DTSTART, DTEND,
                     is.null(RRULE$WKST)) {
 
             if (DTSTART.isdate) {
-                DTSTARTs <- seq(DTSTART, to = UNTIL, by = paste(INTERVAL, "year"))
+                if (!is.null(UNTIL))
+                    DTSTARTs <- seq(DTSTART, to = UNTIL, by = paste(INTERVAL, "year"))
+                else
+                    DTSTARTs <- seq(DTSTART, length.out = COUNT, by = paste(INTERVAL, "year"))
                 DTENDs <- DTSTARTs + unclass(DTEND - DTSTART)
                 ans <- data.frame(DTSTART = DTSTARTs,
                                   DTEND = DTENDs)
@@ -260,11 +268,11 @@ function(DTSTART, DTEND,
         } else if ( is.null(RRULE$BYSECOND)   &&
                     is.null(RRULE$BYMINUTE)   &&
                     is.null(RRULE$BYHOUR)     &&
-                    !is.null(RRULE$BYDAY)      &&
-                    ## is.null(RRULE$BYMONTHDAY) &&
+                   !is.null(RRULE$BYDAY)      &&
+                 ## is.null(RRULE$BYMONTHDAY) &&
                     is.null(RRULE$BYYEARDAY)  &&
                     is.null(RRULE$BYWEEKNO)   &&
-                    !is.null(RRULE$BYMONTH)    &&
+                   !is.null(RRULE$BYMONTH)    &&
                     is.null(RRULE$BYSETPOS)   &&
                     is.null(RRULE$WKST)) {
 
@@ -481,6 +489,8 @@ function(DTSTART, DTEND,
         }
     }
 
+    ## TODO: add RDATEs
+
     ## TODO: remove EXDATEs
 
 
@@ -497,6 +507,11 @@ function(DTSTART, DTEND,
     start + wday - unclass(start + 4) %% 7 +
         rep(interval*7L*(seq_len(count) - 1L), each=length(wday))
 
+.is_ical_date <- function(s, ...)
+    grepl("^[0-9]{8}$", s)
+
+.date <- function(s, ...)
+    as.Date(s, "%Y%m%d")
 
 .utc_dt <- function(s, ...) {
     ## trailing Z does not have to be removed
@@ -511,8 +526,9 @@ function(DTSTART, DTEND,
 
 .parse_rrule <- function(RRULE, ...) {
 
-    ## takes a vector of one or more rrules and
+    ## takes a vector of one or more rrules (character) and
     ## returns a list of lists
+
     rules <- strsplit(RRULE, ";", fixed = TRUE)
     rules <- lapply(rules, strsplit, "=", fixed = TRUE)
     r.names <- lapply(rules, function(x) lapply(x, `[[`, 1))
@@ -529,9 +545,11 @@ function(DTSTART, DTEND,
         else
             x[["INTERVAL"]] <- 1
 
-        if ("UNTIL" %in% nm)  ## FIXME: if DATE?
-            x[["UNTIL"]] <- .utc_dt(x[["UNTIL"]])
-        class(x) <- "icalutils_rrule"
+        if ("UNTIL" %in% nm)
+            if (.is_ical_date(x[["UNTIL"]]))
+                x[["UNTIL"]] <- .date(x[["UNTIL"]])
+            else
+                x[["UNTIL"]] <- .utc_dt(x[["UNTIL"]])
 
         if ("BYMONTH" %in% nm) {
             tmp <- strsplit(x$BYMONTH, ",", fixed = TRUE)[[1]]
@@ -557,6 +575,7 @@ function(DTSTART, DTEND,
             x[["BYMONTHDAY"]] <- tmp
         }
 
+        class(x) <- "icalutils_rrule"
         x
     })
     for (i in seq_along(rules))
@@ -565,8 +584,13 @@ function(DTSTART, DTEND,
 }
 
 .properties <- function(s, ...) {
-    ## receives a character vector (lines of iCalendar),
-    ## and returns named list (names = properties)
+
+    ## receives a character vector (*unfolded* lines of
+    ## iCalendar), and returns named list (names =
+    ## properties). Attached the these properties may be
+    ## attributes ("parameters") as specified by
+    ## [RFC5545:3.2.]. The property values are all
+    ## character.
 
     p <- "^([^:;]+?)[:;](.*)"
     ans <- gsub(p, "\\2", s, perl = TRUE)
@@ -585,8 +609,12 @@ function(DTSTART, DTEND,
 }
 
 .expand_properties <- function(p, tz.names = character(0)) {
+
     ## receives a named list (names = properties) with
-    ## character entries,  and returns a list
+    ## character entries, and returns a list. The values
+    ## should be evaluated to proper R objects
+    ## (e.g. datetime becomes POSIXct, etc).
+
     ans <- p
     nm <- names(ans)
     dtfields <- c("CREATED",
@@ -594,7 +622,9 @@ function(DTSTART, DTEND,
                   "DTSTAMP",
                   "DTSTART",
                   "DTEND",
-                  "DUE")
+                  "DUE",
+                  "EXDATE",
+                  "RDATE")
     for (field in dtfields) {
         if (field %in% nm) {
             if (endsWith(ans[[field]], "Z")) {
@@ -634,14 +664,13 @@ function(DTSTART, DTEND,
 
                 ## local time (no timezone, not UTC)
                 ans[[field]] <- .local_dt(ans[[field]])
-
             }
         }
     }
-    if ("RRULE" %in% nm) {
+
+    if ("RRULE" %in% nm)
         ans[["RRULE"]] <- .parse_rrule(ans[["RRULE"]])[[1]]
 
-    }
     ans
 }
 
@@ -746,3 +775,65 @@ mday <- function(x)
 to_vevent <- function(x, ...)
     UseMethod("aggregate")
 
+
+rrule <-
+function(dtstart,
+         dtend,
+         freq,
+         until = NULL,
+         count = NULL,
+         interval = 1,
+         bysecond = NULL,
+         byminute = NULL,
+         byhour = NULL,
+         byday = NULL,
+         bymonthday = NULL,
+         byyearday = NULL,
+         byweekno = NULL,
+         bymonth = NULL,
+         bysetpos = NULL,
+         wkst = NULL,
+         rdate = NULL,
+         exdate = NULL,
+         text = NULL) {
+
+    if (!is.null(text)) {
+        text <- sub("^RRULE:", "", text)
+        rrule <- .parse_rrule(text)[[1L]]
+    } else {
+        rrule <- list(
+            FREQ        = freq,
+            UNTIL       = until,
+            COUNT       = count,
+            INTERVAL    = interval,
+            BYSECOND    = bysecond,
+            BYMINUTE    = byminute,
+            BYHOUR      = byhour,
+            BYDAY       = byday,
+            BYMONTHDAY  = bymonthday,
+            BYYEARDAY   = byyearday,
+            BYWEEKNO    = byweekno,
+            BYMONTH     = bymonth,
+            BYSETPOS    = bysetpos,
+            WKST        = wkst
+        )
+    }
+
+    ans <- list()
+    ans$text <- if (!is.null(text))
+                    text
+                else {
+                    rrule1 <- rrule[!unlist(lapply(rrule, is.null))]
+                    paste0(paste0(names(rrule1), "=", rrule1), collapse = ";")
+                }
+    ans$recurrence_set <-
+        .expand_rrule(DTSTART = dtstart,
+                      DTEND   = dtend,
+                      RRULE   = rrule,
+                      RDATE   = rdate,
+                      EXDATE  = exdate,
+                      UNTIL   = until,
+                      COUNT   = count,
+                      msg.violations = FALSE)
+    ans
+}

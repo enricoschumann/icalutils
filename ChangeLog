@@ -1,6 +1,12 @@
+2019-12-10  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/functions.R (rrule): add function
+        'rrule'; functions '.parse_rrule' and
+        '.expand_rrule' are no longer exported
+
 2019-12-06  Enrico Schumann  <es@enricoschumann.net>
 
-	* R/functions.R (read_vevent): add argument 'uid.names'
+        * R/functions.R (read_vevent): add argument 'uid.names'
 
 2019-12-05  Enrico Schumann  <es@enricoschumann.net>
 
