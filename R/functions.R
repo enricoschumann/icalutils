@@ -129,6 +129,10 @@ function(x,
 
     if (all.timestamps.POSIXct) {
 
+        ## TODO: add original dates?
+        ## attr(res.df, "start.Date") <- .Date(unlist(start[all.day]))
+        ## attr(res.df, "end.Date") <- .Date(unlist(end[all.day]))
+
         start[all.day] <- lapply(start[all.day],
                                  function(x) as.POSIXct(paste(x, "00:00:00"),
                                                         tz = timestamps.tz))
@@ -161,7 +165,7 @@ function(x,
             copy <- res.df[rep(ri[r], nrow(recurring.events[[r]])-1), ]
             copy$start <- recurring.events[[r]]$DTSTART[-1L]
             copy$end <- recurring.events[[r]]$DTEND[-1L]
-            copy$uid.parent  <- res.df$uid[1L]
+            copy$uid.parent <- res.df$uid[1L]
             copy$uid <- NA
             res.df <- rbind(res.df, copy)
         }
@@ -258,9 +262,13 @@ function(DTSTART, DTEND,
                     DTSTARTs <- seq(DTSTART, to = UNTIL, by = paste(INTERVAL, "year"))
                 else
                     DTSTARTs <- seq(DTSTART, length.out = COUNT, by = paste(INTERVAL, "year"))
-                DTENDs <- DTSTARTs + unclass(DTEND - DTSTART)
-                ans <- data.frame(DTSTART = DTSTARTs,
-                                  DTEND = DTENDs)
+                if (!is.null(DTEND)) {
+                    DTENDs <- DTSTARTs + unclass(DTEND - DTSTART)
+                    ans <- data.frame(DTSTART = DTSTARTs,
+                                      DTEND = DTENDs)
+                } else {
+                    ans <- data.frame(DTSTART = DTSTARTs)
+                }
             } else {
                 NA
             }
@@ -778,7 +786,7 @@ to_vevent <- function(x, ...)
 
 rrule <-
 function(dtstart,
-         dtend,
+         dtend = NULL,
          freq,
          until = NULL,
          count = NULL,
@@ -797,6 +805,9 @@ function(dtstart,
          exdate = NULL,
          text = NULL) {
 
+    if (!is.null(count) && !is.null(until))
+        stop("specify either ", sQuote("count"),
+             " or ", sQuote("until"), ", but not both")
     if (!is.null(text)) {
         text <- sub("^RRULE:", "", text)
         rrule <- .parse_rrule(text)[[1L]]
@@ -804,8 +815,8 @@ function(dtstart,
         rrule <- list(
             FREQ        = freq,
             UNTIL       = until,
-            COUNT       = count,
-            INTERVAL    = interval,
+            COUNT       = if (!is.null(count)) as.numeric(count),
+            INTERVAL    = as.numeric(interval),
             BYSECOND    = bysecond,
             BYMINUTE    = byminute,
             BYHOUR      = byhour,
@@ -824,12 +835,13 @@ function(dtstart,
                     text
                 else {
                     rrule1 <- rrule[!unlist(lapply(rrule, is.null))]
-                    paste0(paste0(names(rrule1), "=", rrule1), collapse = ";")
+                    paste0(paste0(names(rrule1), "=", toupper(rrule1)), collapse = ";")
                 }
+
     ans$recurrence_set <-
         .expand_rrule(DTSTART = dtstart,
                       DTEND   = dtend,
-                      RRULE   = rrule,
+                      RRULE   = .parse_rrule(ans$text)[[1L]],
                       RDATE   = rdate,
                       EXDATE  = exdate,
                       UNTIL   = until,

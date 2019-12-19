@@ -74,10 +74,11 @@ rrule(dtstart, dtend, freq,
 
   }
   \item{all.timestamps.POSIXct}{
-    logical. Applies only if return.class is data.frame
+    logical. To recover the original \code{Date},
+    use \code{as.Date(..., tz = "<tz>")}.
   }
   \item{all.timestamps.Date}{
-    logical. Applies only if return.class is data.frame
+    logical.
   }
   \item{timestamps.tz}{
 
@@ -115,27 +116,32 @@ rrule(dtstart, dtend, freq,
   }
   \item{until}{
     \code{\link{Date}} or \code{\link{POSIXct}}
-}
+  }
   \item{count}{
     integer
-}
+  }
   \item{interval}{
     integer. Default is 1.
-}
+  }
   \item{bysecond}{
 
     a vector of integers between 0 and 60 (though 60 will be changed to
     59, to comply with the POSIX standard)
 
-}
+  }
   \item{byminute}{
     a vector of integers
-}
+  }
   \item{byhour}{
     a vector of integers
   }
   \item{byday}{
-    a list
+
+    The weekdays (Monday, Tuesday, ...) on which an event
+    takes place. Takes either a vector of two-letter weekday
+    abbreviations (\code{mo}, \code{tu}, ...), or a list of
+    two vector.
+
   }
   \item{bymonthday}{
     a vector of integers

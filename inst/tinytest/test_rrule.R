@@ -20,7 +20,7 @@ res <- rrule(dtstart = as.Date("2019-12-31"),
       dtend = as.Date("2019-12-31"),
       freq = "yearly", count = 4)
 
-expect_equal(res$text, "FREQ=yearly;COUNT=4;INTERVAL=1")
+expect_equal(res$text, "FREQ=YEARLY;COUNT=4;INTERVAL=1")
 
 ## recurrence_set should be a vector of four rows
 expect_equal(res$recurrence_set,
@@ -28,6 +28,8 @@ expect_equal(res$recurrence_set,
                  list(DTSTART = structure(c(18261, 18627, 18992, 19357), class = "Date"),
                       DTEND   = structure(c(18261, 18627, 18992, 19357), class = "Date")),
                  class = "data.frame", row.names = c(NA, -4L)))
+
+
 
 ## ------------------------------------------------------
 
@@ -48,6 +50,8 @@ expect_equal(ans$DTEND[1:5],
              structure(c(16137, 16502, 16868, 17233, 17598),
                        class = "Date"))
 
+
+
 ## ------------------------------------------------------
 
 ## DTSTART;VALUE=DATE:20160514
@@ -64,6 +68,8 @@ expect_equal(ans$DTSTART,
              structure(c(16935, 16949, 16963, 16977), class = "Date"))
 expect_equal(ans$DTEND,
              structure(c(16937, 16951, 16965, 16979), class = "Date"))
+
+
 
 ## ------------------------------------------------------
 
@@ -87,6 +93,8 @@ expect_equal(ans$DTEND[1:13],
                          17056, 17070, 17084, 17098,
                          17112, 17126, 17140, 17154,
                          17168), class = "Date"))
+
+
 
 ## ------------------------------------------------------
 
@@ -173,12 +181,31 @@ if ("Europe/Berlin" %in% OlsonNames()) {
 
 }
 
+
 ## ------------------------------------------------------
 ## RRULE examples in RFC5545
 ## 3.3.10. : the last work day of the month
 ## FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1
 
-
+## TODO
 res <- rrule(dtstart = as.Date("2019-12-31"),
              dtend = as.Date("2019-12-31"),
              text = "FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1")
+
+
+## ------------------------------------------------------
+
+## dtend is OPTIONAL
+expect_equal(ncol(rrule(dtstart = as.Date("2019-12-31"),
+                   text = "FREQ=YEARLY")$recurrence_set),
+             1)
+expect_equal(colnames(rrule(dtstart = as.Date("2019-12-31"),
+                   text = "FREQ=YEARLY")$recurrence_set),
+             "DTSTART")
+
+expect_equal(rrule(dtstart = as.Date("2019-12-31"),
+                   text = "FREQ=YEARLY")$recurrence_set,
+             rrule(dtstart = as.Date("2019-12-31"),
+                   freq = "yearly")$recurrence_set)
+
+
