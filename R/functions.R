@@ -11,7 +11,9 @@
     "FR" = 5,
     "SA" = 6)
 
-.fold <- function(s) {}
+.fold <- function(s) {
+
+}
 
 .unfold <- function(s, strict.eol) {
     s <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", s)
@@ -532,6 +534,12 @@ function(DTSTART, DTEND,
     ans
 }
 
+## format time into character representation of UTC time
+## (basic format 8601: YmdHMSZ)
+.z <- function(t)
+    strftime(t, format = "%Y%m%dT%H%M%SZ", tz = "UTC")
+
+
 .parse_rrule <- function(RRULE, ...) {
 
     ## takes a vector of one or more rrules (character) and
@@ -707,45 +715,6 @@ ical_structure <- function(file, ..., strict.eol = TRUE) {
     data.frame(component, level, start, end)
 }
 
-allday_event <- function(date, summary, description = "", file) {
-
-    UID <- paste0(.msgID(), ".", Sys.info()["nodename"])
-    DTSTAMP <- format(as.POSIXlt(Sys.time(), tz = "UTC"), "%Y%m%dT%H%M%SZ")
-
-    DTSTART <- format(date, "%Y%m%d")
-
-    version <- packageVersion("icalutils")
-    tmp <-
-        "BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//enricoschumann.net/R/packages/icalutils//NONSGML icalutils {version}//EN
-BEGIN:VEVENT
-UID:{UID}
-DTSTAMP:{DTSTAMP}
-DTSTART;VALUE=DATE:{DTSTART}
-SUMMARY:{SUMMARY}
-DESCRIPTION:{DESCRIPTION}
-END:VEVENT
-END:VCALENDAR
-"
-
-    tmp <- fill_in(tmp,
-                   UID = UID,
-                   DTSTAMP = DTSTAMP,
-                   DTSTART = DTSTART,
-                   SUMMARY = summary,
-                   DESCRIPTION = description,
-                   version = version)
-    tmp <- strsplit(tmp, "\n", fixed = TRUE)[[1L]]
-    tmp <- paste(tmp, collapse = .eol.strict)
-    if (!missing(file)) {
-        writeLines(tmp, file)
-        invisible(tmp)
-    } else
-        tmp
-
-}
-
 ## copy of https://github.com/enricoschumann/mailtools/blob/master/R/msgID.R
 .msgID <- function() {
     digits <- function(k, b) {
@@ -778,11 +747,6 @@ month <- function(x)
 
 mday <- function(x)
     as.POSIXlt(x)$mday
-
-## TODO no default => .default must raise error
-to_vevent <- function(x, ...)
-    UseMethod("aggregate")
-
 
 rrule <-
 function(dtstart,
@@ -848,4 +812,79 @@ function(dtstart,
                       COUNT   = count,
                       msg.violations = FALSE)
     ans
+}
+
+## TODO no default => .default must raise error
+to_vevent <- function(x, ...)
+    UseMethod("aggregate")
+
+vevent <-
+function(dtstart,
+         dtend = NULL,
+         all.day = inherits(dtstart, "Date"),
+         summary,
+         ...,
+         vcalendar = TRUE,
+         file) {
+    
+    DTSTART <- if (inherits(dtstart, "Date"))
+                   format(dtstart, "%Y%m%d")
+               else
+                   .z(dtstart)
+
+    version <- packageVersion("icalutils")
+    event <- c("BEGIN:VEVENT",
+               paste0("UID:", paste0(.msgID(), ".", Sys.info()["nodename"])),
+               paste0("DTSTAMP:", .z(Sys.time())),
+               paste0("DTSTART:", DTSTART))
+    if (!is.null(dtend)) {
+        DTEND <- if (inherits(dtend, "Date"))
+                       format(dtend, "%Y%m%d")
+                   else
+                       .z(dtend)
+        event <- c(event, 
+                   paste0("DTEND:", DTEND))
+    }
+            
+    event <- c("BEGIN:VEVENT",
+               event,
+               "END:VEVENT")
+
+    if (vcalendar) 
+    head <- "
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//enricoschumann.net/R/packages/icalutils//NONSGML icalutils {version}//EN
+"
+
+foot <- "END:VCALENDAR"
+    
+    ## BEGIN:VEVENT
+    ## UID:{UID}
+    ## DTSTAMP:{DTSTAMP}
+    ## DTSTART;VALUE=DATE:{DTSTART}
+    ## SUMMARY:{SUMMARY}
+    ## DESCRIPTION:{DESCRIPTION}
+    ## END:VEVENT
+    ## "
+
+    ## tmp <- fill_in(tmp,
+    ##                UID = UID,
+    ##                DTSTAMP = DTSTAMP,
+    ##                DTSTART = DTSTART,
+    ##                SUMMARY = summary,
+    ##                DESCRIPTION = description,
+    ##                version = version)
+    ## tmp <- strsplit(tmp, "\n", fixed = TRUE)[[1L]]
+    ## tmp <- paste(tmp, collapse = .eol.strict)
+
+    ans <- as.list(event)
+    if (!missing(file)) {
+        ## TODO FOLD
+        
+        writeLines(event, file)
+        invisible(event)
+    } else
+        event
+    
 }
