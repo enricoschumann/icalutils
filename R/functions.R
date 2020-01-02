@@ -46,7 +46,7 @@ function(file,
     begin <- grep("^BEGIN:VEVENT", cal)
     end <- grep("^END:VEVENT", cal)
 
-    ## TODO: text operations
+    ## TODO: text operations -- remove \, etc?
 
     cal <- .properties(cal)
 
@@ -601,12 +601,12 @@ function(DTSTART, DTEND,
 
 .properties <- function(s, ...) {
 
-    ## receives a character vector (*unfolded* lines of
-    ## iCalendar), and returns named list (names =
-    ## properties). Attached the these properties may be
-    ## attributes ("parameters") as specified by
-    ## [RFC5545:3.2.]. The property values are all
-    ## character.
+    ## receives a character vector (*unfolded* content
+    ## lines of iCalendar), and returns named list
+    ## (names = properties). Attached (as attributes)
+    ## to these properties may be "parameters" as
+    ## specified by [RFC5545:3.2.]. The property values
+    ## are all character.
 
     p <- "^([^:;]+?)[:;](.*)"
     ans <- gsub(p, "\\2", s, perl = TRUE)
@@ -826,7 +826,7 @@ function(dtstart,
          ...,
          vcalendar = TRUE,
          file) {
-    
+
     DTSTART <- if (inherits(dtstart, "Date"))
                    format(dtstart, "%Y%m%d")
                else
@@ -842,15 +842,15 @@ function(dtstart,
                        format(dtend, "%Y%m%d")
                    else
                        .z(dtend)
-        event <- c(event, 
+        event <- c(event,
                    paste0("DTEND:", DTEND))
     }
-            
+
     event <- c("BEGIN:VEVENT",
                event,
                "END:VEVENT")
 
-    if (vcalendar) 
+    if (vcalendar)
     head <- "
 BEGIN:VCALENDAR
 VERSION:2.0
@@ -858,7 +858,7 @@ PRODID:-//enricoschumann.net/R/packages/icalutils//NONSGML icalutils {version}//
 "
 
 foot <- "END:VCALENDAR"
-    
+
     ## BEGIN:VEVENT
     ## UID:{UID}
     ## DTSTAMP:{DTSTAMP}
@@ -881,10 +881,10 @@ foot <- "END:VCALENDAR"
     ans <- as.list(event)
     if (!missing(file)) {
         ## TODO FOLD
-        
+
         writeLines(event, file)
         invisible(event)
     } else
         event
-    
+
 }
