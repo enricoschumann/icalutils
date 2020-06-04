@@ -12,7 +12,7 @@
     "SA" = 6)
 
 .fold <- function(s) {
-
+    ## TODO
 }
 
 .unfold <- function(s, strict.eol) {
@@ -30,6 +30,105 @@
         vcal[[i]] <- txt
     }
     paste(unlist(vcal), collapse = "")
+}
+
+read_icalendar <-
+function(file,
+         strict.eol = TRUE,
+         use.OlsonNames = TRUE,
+         uid.names = FALSE,
+         keep.source = TRUE,
+         ...) {
+
+    if (use.OlsonNames)
+        tz.names <- OlsonNames()
+    else
+        tz.names <- character(0)
+
+
+    cal.txt <- .read_one_line(file)
+    cal.txt <- .unfold(cal.txt, strict.eol)
+
+
+
+    ## TODO: text operations -- remove \, etc?
+    cal <- .properties(cal.txt)
+    if (keep.source)
+        for (i in seq_along(cal))
+            attr(cal[[i]], "source") <- cal.txt[i]
+    cal <- .expand_properties(cal, tz.names = tz.names)
+
+    components <- c("VEVENT", "VTODO", "VJOURNAL",
+                    "VFREEBUSY", "VTIMEZONE")
+
+    ans <- list()
+    for (C in components) {
+        ans[[C]] <- list()
+
+        ## grep the original content lines
+        begin <- grep(paste0("^BEGIN:", C), cal.txt, ignore.case = TRUE)
+        end <- grep(paste0("^END:", C),     cal.txt, ignore.case = TRUE)
+        for (i in seq_along(begin))
+            ans[[C]][[i]] <- cal[seq(begin[i] + 1L, end[i] - 1L)]
+        if (uid.names)
+            names(ans[[C]]) <-
+                sapply(ans[[C]], function(x)
+                    if (is.null(x[["UID"]])) NA else x[["UID"]])
+        lapply(ans[[C]], `class<-`, paste0("icalutils_", tolower(C)))
+        class(ans[[C]]) <- paste0("icalutils_", tolower(C), "s")
+    }
+    class(ans) <- c("icalutils_icalendar")
+    ans
+
+}
+
+print.icalutils_icalendar <-
+function(x, ...) {
+
+    len <- lengths(x)
+
+    res <- "An icalendar file:"
+    m <- if (len[1] == 0)
+             "no events,"
+         else if (len[1] == 1)
+             "1 event,"
+         else
+             paste(len[1], "events,")
+    res <- paste(res, m)
+
+    m <- if (len[2] == 0)
+             "no TODOs,"
+         else if (len[2] == 1)
+             "1 TODO,"
+         else
+             paste(len[2], "TODOs,")
+    res <- paste(res, m)
+
+    m <- if (len[3] == 0)
+             "no journal entries,\n"
+         else if (len[3] == 1)
+             "1 journal entry,\n"
+         else
+             paste(len[3], "journal entries,\n")
+    res <- paste(res, m)
+
+    m <- if (len[4] == 0)
+             "  no information on free/busy time,"
+         else if (len[4] == 1)
+             "  1 entry on free/busy time,"
+         else
+             paste(len[4], "entries on free/busy time,")
+    res <- paste(res, m)
+
+        m <- if (len[5] == 0)
+             "no information on timezones.\n"
+         else if (len[5] == 1)
+             "information on 1 timezone.\n"
+         else
+             paste("information on", len[5], "timezone.\n")
+    res <- paste(res, m)
+    cat(res)
+    invisible(x)
 }
 
 read_vevent <-
@@ -509,7 +608,6 @@ function(DTSTART, DTEND,
 
 }
 
-
 .weekday <- function(dates)
     unclass(dates + 4) %% 7
 
@@ -601,9 +699,10 @@ function(DTSTART, DTEND,
 
 .properties <- function(s, ...) {
 
-    ## receives a character vector (*unfolded* content
-    ## lines of iCalendar), and returns named list
-    ## (names = properties). Attached (as attributes)
+    ## receives a character vector
+    ## (*unfolded* content lines of iCalendar stream),
+    ## and returns named list (names = properties).
+    ## Attached (as attributes)
     ## to these properties may be "parameters" as
     ## specified by [RFC5545:3.2.]. The property values
     ## are all character.

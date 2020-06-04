@@ -1,3 +1,10 @@
+2020-06-04  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/functions.R (read_icalendar): add function
+        'read_icalendar'
+        (read_icalendar): add print method for class
+        "icalutils_icalendar"
+
 2019-12-10  Enrico Schumann  <es@enricoschumann.net>
 
         * R/functions.R (rrule): add function
