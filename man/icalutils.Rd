@@ -4,7 +4,7 @@
 \alias{read_icalendar}
 \alias{read_vevent}
 \alias{read_vtimezone}
-\alias{as.data.frame.icalutils_vevent}
+\alias{as.data.frame.icalendar}
 \alias{rrule}
 
 \title{
@@ -19,7 +19,7 @@ read_vevent(file, strict.eol = TRUE,
             uid.names =  FALSE, ...)
 read_vtimezone(file, strict.eol = TRUE, ...)
 
-\method{as.data.frame}{icalutils_vevent}(x, row.names = NULL, optional = FALSE,
+\method{as.data.frame}{icalendar}(x, row.names = NULL, optional = FALSE,
               adjust.allday = TRUE,
               recur.expand = FALSE,
               recur.until = NULL,
@@ -39,20 +39,17 @@ rrule(dtstart, dtend, freq,
       wkst = NULL, rdate = NULL, exdate = NULL, text = NULL)
 }
 \arguments{
-  \item{file}{
-    character
-  }
-  \item{strict.eol}{
-    logical. RFC 5545 says that the end of line should be signalled by CRLF.
-  }
-  \item{adjust.allday}{
 
-    logical.  If \code{TRUE}, the end day is moved one day back.
-    If an all-day event ends on a given day,
-    its end is stored as the next day in the icalendar
-    format.
+  \item{file}{character}
 
-  }
+  \item{strict.eol}{logical. RFC 5545 says that the end
+    of line should be signalled by CRLF.}
+
+  \item{adjust.allday}{logical.  If \code{TRUE}, the
+    end day is moved one day back.  If an all-day event
+    ends on a given day, its end is stored as the next
+    day in the icalendar format.}
+
   \item{recur.expand}{
     logical
   }
@@ -173,13 +170,12 @@ rrule(dtstart, dtend, freq,
 }
 \details{
 
-  An icalendar file consist of one or more calendars, each
-  of which has one or more so-called components such as
-  events or journal entries. The components in turn are
-  composed of properties, such as \sQuote{summary}. A
-  property may have parameters: a \sQuote{summary}, for
-  instance, may have a parameter that tells its
-  \sQuote{language}.
+
+
+  \code{read_icalendar} reads a file and returns an
+  object of class \code{icalendar}, which is a list of
+  lists: each component (e.g. an event) becomes a list.
+
 
   \code{read_vevent} reads a file in icalendar format. It
   returns a list, in which each entry contains one
@@ -190,6 +186,20 @@ rrule(dtstart, dtend, freq,
   available, which returns a \code{\link{data.frame}} of a
   selection of properties of the events; see Value section
   below.
+
+  \subsection{Terminology}{
+
+    An icalendar stream (typically, a file)
+    consist of one or more calendar objects. Each
+    calendar object has some properties (such as the
+    version) and one or more components, such as events,
+    TODOs or journal entries. These components are again
+    composed of properties, such as \sQuote{summary}. A
+    property may have parameters: a \sQuote{summary}, for
+    instance, may have a parameter that tells its
+    \sQuote{language}.
+
+  }
 
   \subsection{Dates and times}{
 

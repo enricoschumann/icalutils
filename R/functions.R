@@ -12,7 +12,8 @@
     "SA" = 6)
 
 .fold <- function(s) {
-    ## TODO
+    i <- nchar(s) > 75
+
 }
 
 .unfold <- function(s, strict.eol) {
@@ -38,6 +39,8 @@ function(file,
          use.OlsonNames = TRUE,
          uid.names = FALSE,
          keep.source = TRUE,
+         components = c("VEVENT", "VTODO", "VJOURNAL",
+                        "VFREEBUSY", "VTIMEZONE"),
          ...) {
 
     if (use.OlsonNames)
@@ -50,7 +53,6 @@ function(file,
     cal.txt <- .unfold(cal.txt, strict.eol)
 
 
-
     ## TODO: text operations -- remove \, etc?
     cal <- .properties(cal.txt)
     if (keep.source)
@@ -58,76 +60,73 @@ function(file,
             attr(cal[[i]], "source") <- cal.txt[i]
     cal <- .expand_properties(cal, tz.names = tz.names)
 
-    components <- c("VEVENT", "VTODO", "VJOURNAL",
-                    "VFREEBUSY", "VTIMEZONE")
 
     ans <- list()
     for (C in components) {
-        ans[[C]] <- list()
-
         ## grep the original content lines
         begin <- grep(paste0("^BEGIN:", C), cal.txt, ignore.case = TRUE)
         end <- grep(paste0("^END:", C),     cal.txt, ignore.case = TRUE)
-        for (i in seq_along(begin))
-            ans[[C]][[i]] <- cal[seq(begin[i] + 1L, end[i] - 1L)]
-        if (uid.names)
-            names(ans[[C]]) <-
-                sapply(ans[[C]], function(x)
-                    if (is.null(x[["UID"]])) NA else x[["UID"]])
-        lapply(ans[[C]], `class<-`, paste0("icalutils_", tolower(C)))
-        class(ans[[C]]) <- paste0("icalutils_", tolower(C), "s")
+        for (i in seq_along(begin)) {
+            ans.i <- cal[seq(begin[i] + 1L, end[i] - 1L)]
+            class(ans.i) <- tolower(C)
+            ans <- c(ans, list(ans.i))
+        }
     }
-    class(ans) <- c("icalutils_icalendar")
+    if (uid.names)
+        names(ans) <-
+            sapply(ans, function(x)
+                if (is.null(x[["UID"]])) NA else x[["UID"]])
+    class(ans) <- c("icalendar")
     ans
 
 }
 
-print.icalutils_icalendar <-
+print.icalendar <-
 function(x, ...) {
 
-    len <- lengths(x)
+    len <- length(x)
+    cat("An icalendar file with", len, "components.\n")
 
-    res <- "An icalendar file:"
-    m <- if (len[1] == 0)
-             "no events,"
-         else if (len[1] == 1)
-             "1 event,"
-         else
-             paste(len[1], "events,")
-    res <- paste(res, m)
+    ## m <- if (len[1] == 0)
+    ##          "no events,"
+    ##      else if (len[1] == 1)
+    ##          "1 event,"
+    ##      else
+    ##          paste(len[1], "events,")
+    ## res <- paste(res, m)
 
-    m <- if (len[2] == 0)
-             "no TODOs,"
-         else if (len[2] == 1)
-             "1 TODO,"
-         else
-             paste(len[2], "TODOs,")
-    res <- paste(res, m)
+    ## m <- if (len[2] == 0)
+    ##          "no TODOs,"
+    ##      else if (len[2] == 1)
+    ##          "1 TODO,"
+    ##      else
+    ##          paste(len[2], "TODOs,")
+    ## res <- paste(res, m)
 
-    m <- if (len[3] == 0)
-             "no journal entries,\n"
-         else if (len[3] == 1)
-             "1 journal entry,\n"
-         else
-             paste(len[3], "journal entries,\n")
-    res <- paste(res, m)
+    ## m <- if (len[3] == 0)
+    ##          "no journal entries,\n"
+    ##      else if (len[3] == 1)
+    ##          "1 journal entry,\n"
+    ##      else
+    ##          paste(len[3], "journal entries,\n")
+    ## res <- paste(res, m)
 
-    m <- if (len[4] == 0)
-             "  no information on free/busy time,"
-         else if (len[4] == 1)
-             "  1 entry on free/busy time,"
-         else
-             paste(len[4], "entries on free/busy time,")
-    res <- paste(res, m)
+    ## m <- if (len[4] == 0)
+    ##          "  no information on free/busy time,"
+    ##      else if (len[4] == 1)
+    ##          "  1 entry on free/busy time,"
+    ##      else
+    ##          paste(len[4], "entries on free/busy time,")
+    ## res <- paste(res, m)
 
-        m <- if (len[5] == 0)
-             "no information on timezones.\n"
-         else if (len[5] == 1)
-             "information on 1 timezone.\n"
-         else
-             paste("information on", len[5], "timezone.\n")
-    res <- paste(res, m)
-    cat(res)
+    ##     m <- if (len[5] == 0)
+    ##          "no information on timezones.\n"
+    ##      else if (len[5] == 1)
+    ##          "information on 1 timezone.\n"
+    ##      else
+    ##          paste("information on", len[5], "timezone.\n")
+    ## res <- paste(res, m)
+    ## cat(res)
     invisible(x)
 }
 
@@ -165,7 +164,7 @@ function(file,
     res
 }
 
-as.data.frame.icalutils_vevent <-
+as.data.frame.icalendar <-
 function(x,
          row.names = NULL,
          optional = FALSE,
@@ -209,13 +208,14 @@ function(x,
 
     ## compute recurrances from original _start_ and _end_
     ## but allow for all.day adjustments
+
     if (recur.expand) {
         recurring.events <- list()
         RRULE <- lapply(x[recurring], `[[`, "RRULE")
         for (r in seq_along(RRULE)) {
             ## if ("EXDATE" %in% names(x[recurring][[r]]))
-            ##     browser()
 
+            ## browser()
             created <- .expand_rrule(start[recurring][[r]],
                                      end  [recurring][[r]],
                                      RRULE = RRULE[[r]],
@@ -689,9 +689,10 @@ function(DTSTART, DTEND,
             x[["BYMONTHDAY"]] <- tmp
         }
 
-        class(x) <- "icalutils_rrule"
+        class(x) <- "RRULE"
         x
     })
+
     for (i in seq_along(rules))
         attr(rules[[i]], "RRULE") <- RRULE[i]
     rules
@@ -731,7 +732,17 @@ function(DTSTART, DTEND,
     ## (e.g. datetime becomes POSIXct, etc).
 
     ans <- p
+    txt <- unlist(p)  ## all character, so unlist is safe
+    param <- unlist(lapply(ans, function(x)
+        if (!is.null(A <- attr(x, "parameters")))
+            A else ""))
+
     nm <- names(ans)
+    done <- logical(length(ans))
+
+
+
+    ## ----------- DATETIME FIELDS -----------
     dtfields <- c("CREATED",
                   "LAST-MODIFIED",
                   "DTSTAMP",
@@ -740,52 +751,89 @@ function(DTSTART, DTEND,
                   "DUE",
                   "EXDATE",
                   "RDATE")
-    for (field in dtfields) {
-        if (field %in% nm) {
-            if (endsWith(ans[[field]], "Z")) {
+    is.dt <- nm %in% dtfields
 
-                ans[[field]] <- .utc_dt(ans[[field]])
+    if (any(is.dt)) {
+        i <- !done & is.dt & endsWith(txt, "Z")
+        if (any(i)) {
+            i.utc <- which(i)
+            v.utc <- .utc_dt(txt[i])
+            done[i] <- TRUE
+        }
 
-            } else if (length(
-                       grep("^VALUE=DATE",
-                            attr(ans[[field]], "parameters"),
-                            ignore.case = TRUE))) {
+        i <- !done & is.dt & grepl("VALUE=DATE", param, ignore.case = TRUE)
+        if (any(i)) {
+            i.date <- which(i)
+            v.date <- as.Date(txt[i], format = "%Y%m%d")
+            done[i] <- TRUE
+        }
 
-                ans[[field]] <- as.Date(ans[[field]],
-                                        format = "%Y%m%d")
+        i <- !done & is.dt & grepl("TZID", param, ignore.case = TRUE)
+        if (any(i)) {
+            i.tz <- which(i)
+            v.tz <- vector("list", length = length(i.tz)) ## a list to preserve  tz
 
-            } else if (length(
-                       grep("^TZID",
-                            attr(ans[[field]], "parameters"),
-                            ignore.case = TRUE))) {
-                ## TZID may use double-quotes
-                tz <- sub('TZID="?([^;"]+)"?', "\\1", attr(ans[[field]],"parameters"))
-                if (!tz %in% tz.names)
-                    if (tz.i <- match(tz, .tznames$Windows, nomatch = 0)) {
+            tz <- sub('TZID="?([^;"]+)"?', "\\1", param[i])
+
+            for (j in seq_along(i.tz)) {
+
+                if (!tz[j] %in% tz.names)
+                    if (tz1 <- match(tz[j], .tznames$Windows, nomatch = 0)) {
                         ## TODO collect such messages
                         ## message("map timezone  ",
-                        ##         .tznames[["Windows"]][tz.i], " => ",
-                        ##         .tznames[["Olson"]][tz.i])
-                        tz <- .tznames[["Olson"]][tz.i]
+                        ##         .tznames[["Windows"]][tz1], " => ",
+                        ##         .tznames[["Olson"]][tz1])
+                        tz1 <- .tznames[["Olson"]][tz1]
                     } else {
-                        warning("Timezone not found: ", tz, ". Using current tz instead.")
-                        tz <- ""
+                        warning("Timezone not found: ", tz[j], ". Using current tz instead.")
+                        tz1 <- ""
                     }
+                else
+                    tz1 <- tz[j]
 
-                ans[[field]] <- as.POSIXct(ans[[field]],
-                                           format = "%Y%m%dT%H%M%S",
-                                           tz = tz)
-            } else {
-
-                ## local time (no timezone, not UTC)
-                ans[[field]] <- .local_dt(ans[[field]])
+                v.tz[[j]] <- as.POSIXct(ans[[i.tz[j]]],
+                                        format = "%Y%m%dT%H%M%S",
+                                        tz = tz1)
             }
-        }
+
+            done[i] <- TRUE
+        } else
+            i.tz <- NULL
+
+        i <- !done & is.dt & grepl("^[0-9]{8}T[0-9]{6}$", param)
+        if (any(i)) {
+            i.localtime <- which(i)
+            v.localtime <- .local_dt(txt[i])
+            done[i] <- TRUE
+        } else
+            i.localtime <- NULL
+
     }
 
-    if ("RRULE" %in% nm)
-        ans[["RRULE"]] <- .parse_rrule(ans[["RRULE"]])[[1]]
+    for (j in c(i.utc, i.date, i.tz, i.localtime)) {
+        ans[[j]] <- if (j %in% i.utc)
+                        v.utc[j == i.utc]
+                    else if (j %in% i.date)
+                        v.date[j == i.date]
+                    else if (j %in% i.localtime)
+                        v.localtime[j == i.localtime]
+                    else if (j %in% i.tz)
+                        v.tz[[which(j == i.tz)]]
+        attr(ans[[j]], "source") <- attr(p[[j]], "source")
+        if (param[j] != "")
+            attr(ans[[j]], "parameters") <- attr(p[[j]], "parameters")
+    }
 
+
+
+    ## ----------- RRULE -----------
+    i <- which(nm %in% "RRULE")
+    for (j in i) {
+        ans[[j]] <- .parse_rrule(ans[[j]])[[1]]
+        attr(ans[[j]], "source") <- attr(p[[j]], "source")
+        if (param[j] != "")
+            attr(ans[[j]], "parameters") <- attr(p[[j]], "parameters")
+    }
     ans
 }
 
@@ -915,32 +963,51 @@ function(dtstart,
 
 ## TODO no default => .default must raise error
 to_vevent <- function(x, ...)
-    UseMethod("aggregate")
+    UseMethod("to_vevent")
+
+
 
 vevent <-
 function(dtstart,
+         summary,
          dtend = NULL,
          all.day = inherits(dtstart, "Date"),
-         summary,
+         description = NULL,
+         uid = NULL,
+         categories = NULL,
          ...,
          vcalendar = TRUE,
-         file) {
+         file,
+         fold = TRUE) {
 
     DTSTART <- if (inherits(dtstart, "Date"))
                    format(dtstart, "%Y%m%d")
                else
                    .z(dtstart)
 
-    version <- packageVersion("icalutils")
-    event <- c("BEGIN:VEVENT",
-               paste0("UID:", paste0(.msgID(), ".", Sys.info()["nodename"])),
+
+    UID <- if (is.null(uid))
+               .msgID()
+           else
+               uid
+
+    event <- c(paste0("UID:", paste0(UID, ".", Sys.info()["nodename"])),
+               paste0("SUMMARY:", summary),
                paste0("DTSTAMP:", .z(Sys.time())),
                paste0("DTSTART:", DTSTART))
+
     if (!is.null(dtend)) {
-        DTEND <- if (inherits(dtend, "Date"))
-                       format(dtend, "%Y%m%d")
-                   else
-                       .z(dtend)
+        DTEND <- if (inherits(dtend, "Date")) {
+                     if (all.day)
+                         dtend <- dtend + 1
+                     format(dtend, "%Y%m%d")
+                 } else
+                     .z(dtend)
+        event <- c(event,
+                   paste0("DTEND:", DTEND))
+    } else if (all.day) {
+        DTEND <- dtstart + 1
+        DTEND <- format(DTEND, "%Y%m%d")
         event <- c(event,
                    paste0("DTEND:", DTEND))
     }
@@ -949,39 +1016,25 @@ function(dtstart,
                event,
                "END:VEVENT")
 
-    if (vcalendar)
-    head <- "
-BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//enricoschumann.net/R/packages/icalutils//NONSGML icalutils {version}//EN
-"
+    if (vcalendar) {
+        head <- c("BEGIN:VCALENDAR",
+                  "VERSION:2.0",
+                  "PRODID:-//http://enricoschumann.net/R/packages/icalutils//NONSGML icalutils %%version%%//EN")
 
-foot <- "END:VCALENDAR"
+        VERSION <- packageVersion("icalutils")
+        head <- gsub("%%version%%", VERSION, head)
 
-    ## BEGIN:VEVENT
-    ## UID:{UID}
-    ## DTSTAMP:{DTSTAMP}
-    ## DTSTART;VALUE=DATE:{DTSTART}
-    ## SUMMARY:{SUMMARY}
-    ## DESCRIPTION:{DESCRIPTION}
-    ## END:VEVENT
-    ## "
-
-    ## tmp <- fill_in(tmp,
-    ##                UID = UID,
-    ##                DTSTAMP = DTSTAMP,
-    ##                DTSTART = DTSTART,
-    ##                SUMMARY = summary,
-    ##                DESCRIPTION = description,
-    ##                version = version)
-    ## tmp <- strsplit(tmp, "\n", fixed = TRUE)[[1L]]
-    ## tmp <- paste(tmp, collapse = .eol.strict)
+        foot <- "END:VCALENDAR"
+        event <- c(head, event, foot)
+    }
 
     ans <- as.list(event)
+    class(ans) <- "vevent"
+
     if (!missing(file)) {
         ## TODO FOLD
 
-        writeLines(event, file)
+        writeLines(paste(paste0(event, .eol.strict), collapse = ""), file)
         invisible(event)
     } else
         event

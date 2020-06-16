@@ -2,13 +2,15 @@ export(
     "read_icalendar",
     "read_vevent",
     "read_vtimezone",
+    "vevent",
+    "to_vevent",
     "rrule")
 
 importFrom("stats", "runif")
 importFrom("utils", "packageVersion")
 
-importFrom("textutils", "fill_in")
+## importFrom("textutils", "fill_in")
 
-S3method("as.data.frame", "icalutils_vevent")
+S3method("as.data.frame", "icalendar")
 
-S3method("print", "icalutils_icalendar")
+S3method("print", "icalendar")
