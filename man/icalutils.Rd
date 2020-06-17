@@ -2,11 +2,11 @@
 \alias{icalutils}
 \alias{icalutils-package}
 \alias{read_icalendar}
-\alias{read_vevent}
-\alias{read_vtimezone}
 \alias{as.data.frame.icalendar}
 \alias{rrule}
-
+\alias{vevent}
+\alias{to_vevent}
+\concept{icalendar}
 \title{
   Read and Create iCalendar Data
 }
@@ -14,10 +14,11 @@
   Read and create iCalendar data
 }
 \usage{
-read_vevent(file, strict.eol = TRUE,
-            use.OlsonNames = TRUE,
-            uid.names =  FALSE, ...)
-read_vtimezone(file, strict.eol = TRUE, ...)
+read_icalendar(file, strict.eol = TRUE, use.OlsonNames = TRUE,
+               uid.names = FALSE, keep.source = TRUE,
+               components = c("VEVENT", "VTODO", "VJOURNAL",
+                              "VFREEBUSY", "VTIMEZONE"),
+               ...)
 
 \method{as.data.frame}{icalendar}(x, row.names = NULL, optional = FALSE,
               adjust.allday = TRUE,
@@ -28,6 +29,7 @@ read_vtimezone(file, strict.eol = TRUE, ...)
               all.timestamps.POSIXct = TRUE,
               all.timestamps.Date = FALSE,
               timestamps.tz = "",
+              components = c("VEVENT", "VTODO"),
               \dots)
 
 rrule(dtstart, dtend, freq,
@@ -167,6 +169,12 @@ rrule(dtstart, dtend, freq,
   \item{text}{
     the text of the RRULE as used in an icalendar file
   }
+  \item{keep.source}{
+    logical
+  }
+  \item{components}{
+    a character vector
+  }
 }
 \details{
 
@@ -207,6 +215,21 @@ rrule(dtstart, dtend, freq,
     dates, datetimes with timezone information (which
     includes UTC times) and datetimes without timezone
     information.
+
+  }
+
+  \subsection{All-day events}{
+
+    The icalendar specification does not detail how to
+    treat all-day events.  Two implementations seem
+    widespread: i) events on a single day define only
+    \code{DTSTART}, but no end; ii) the DTEND is the
+    day after the final day of the event. For instance,
+    an event that lasts from August, 1 to August, 3 has
+    DTSTART of August, 1, but DTEND at August, 4 (as in
+    August, 4, 00:00:00). If \code{adjust.allday} is
+    \code{TRUE} (the default), the end will be set to
+    August, 3 (i.e. it becomes inclusive).
 
   }
 

@@ -86,82 +86,7 @@ function(x, ...) {
 
     len <- length(x)
     cat("An icalendar file with", len, "components.\n")
-
-    ## m <- if (len[1] == 0)
-    ##          "no events,"
-    ##      else if (len[1] == 1)
-    ##          "1 event,"
-    ##      else
-    ##          paste(len[1], "events,")
-    ## res <- paste(res, m)
-
-    ## m <- if (len[2] == 0)
-    ##          "no TODOs,"
-    ##      else if (len[2] == 1)
-    ##          "1 TODO,"
-    ##      else
-    ##          paste(len[2], "TODOs,")
-    ## res <- paste(res, m)
-
-    ## m <- if (len[3] == 0)
-    ##          "no journal entries,\n"
-    ##      else if (len[3] == 1)
-    ##          "1 journal entry,\n"
-    ##      else
-    ##          paste(len[3], "journal entries,\n")
-    ## res <- paste(res, m)
-
-    ## m <- if (len[4] == 0)
-    ##          "  no information on free/busy time,"
-    ##      else if (len[4] == 1)
-    ##          "  1 entry on free/busy time,"
-    ##      else
-    ##          paste(len[4], "entries on free/busy time,")
-    ## res <- paste(res, m)
-
-    ##     m <- if (len[5] == 0)
-    ##          "no information on timezones.\n"
-    ##      else if (len[5] == 1)
-    ##          "information on 1 timezone.\n"
-    ##      else
-    ##          paste("information on", len[5], "timezone.\n")
-    ## res <- paste(res, m)
-    ## cat(res)
     invisible(x)
-}
-
-read_vevent <-
-function(file,
-         strict.eol = TRUE,
-         use.OlsonNames = TRUE,
-         uid.names = FALSE,
-         ...) {
-
-    cal <- .read_one_line(file)
-    cal <- .unfold(cal, strict.eol)
-
-    ## RFC5545: VEVENTs cannot be nested
-    begin <- grep("^BEGIN:VEVENT", cal)
-    end <- grep("^END:VEVENT", cal)
-
-    ## TODO: text operations -- remove \, etc?
-
-    cal <- .properties(cal)
-
-    if (use.OlsonNames)
-        tz.names <- OlsonNames()
-    else
-        tz.names <- character(0)
-
-    res <- list()
-    for (i in seq_along(begin)) {
-        event <- cal[seq(begin[i] + 1, end[i] - 1)]
-        res[[i]] <- .expand_properties(event, tz.names = tz.names)
-    }
-    if (uid.names)
-        names(res) <- sapply(res, function(x) if (is.null(x[["UID"]])) NA else x[["UID"]])
-    class(res) <- c("icalutils_vevent")
-    res
 }
 
 as.data.frame.icalendar <-
@@ -276,21 +201,94 @@ function(x,
     res.df
 }
 
-read_vtimezone <-
-function(file, strict.eol = TRUE, ...) {
-    cal <- .read_one_line(file)
-    cal <- .unfold(cal, strict.eol)
 
-    ## rfc5545: VTIMEZONE cannot be nested
-    begin <- grep("^BEGIN:VTIMEZONE", cal)
-    end <- grep("^END:VTIMEZONE", cal)
+.weekday <- function(dates)
+    unclass(dates + 4) %% 7
 
-    res <- list()
-    for (i in seq_along(begin)) {
-        event <- cal[seq(begin[i]+1, end[i]-1)]
-        res[[i]] <- .expand_properties(.properties(event))
-    }
-    res
+.next_weekday <- function(wday, start, count = 1, interval = 1)
+    start + wday - unclass(start + 4) %% 7 +
+        rep(interval*7L*(seq_len(count) - 1L), each = length(wday))
+
+.is_ical_date <- function(s, ...)
+    grepl("^[0-9]{8}$", s)
+
+.date <- function(s, ...)
+    as.Date(s, "%Y%m%d")
+
+.utc_dt <- function(s, ...) {
+    ## trailing Z does not have to be removed
+    as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
+}
+
+.local_dt <- function(s) {
+    ans <- as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
+    attr(ans, "icalutils_localtime") <- TRUE
+    ans
+}
+
+## format time into character representation of UTC time
+## (basic format 8601: YmdHMSZ)
+.z <- function(t)
+    strftime(t, format = "%Y%m%dT%H%M%SZ", tz = "UTC")
+
+.parse_rrule <- function(RRULE, ...) {
+
+    ## takes a vector of one or more rrules (character) and
+    ## returns a list of lists
+
+    rules <- strsplit(RRULE, ";", fixed = TRUE)
+    rules <- lapply(rules, strsplit, "=", fixed = TRUE)
+    r.names <- lapply(rules, function(x) lapply(x, `[[`, 1))
+    r.names <- lapply(r.names, unlist)
+    rules <- lapply(rules, function(x) lapply(x, `[`, -1))
+
+    rules <- mapply(`names<-`, rules, r.names, SIMPLIFY = FALSE)
+
+    rules <- lapply(rules,
+                    function(x) {
+        nm <- names(x)
+        if ("INTERVAL" %in% nm)
+            x[["INTERVAL"]] <- as.numeric(x[["INTERVAL"]])
+        else
+            x[["INTERVAL"]] <- 1
+
+        if ("UNTIL" %in% nm)
+            if (.is_ical_date(x[["UNTIL"]]))
+                x[["UNTIL"]] <- .date(x[["UNTIL"]])
+            else
+                x[["UNTIL"]] <- .utc_dt(x[["UNTIL"]])
+
+        if ("BYMONTH" %in% nm) {
+            tmp <- strsplit(x$BYMONTH, ",", fixed = TRUE)[[1]]
+            tmp <- as.numeric(tmp)
+            x[["BYMONTH"]] <- tmp
+        }
+        if ("BYDAY" %in% nm) {
+            BYDAY <- list()
+            tmp <- toupper(strsplit(x$BYDAY, ",", fixed = TRUE)[[1]])
+            if (any(grepl("[+-]?\\d+[A-Z]+", tmp))) {
+                BYDAY[["wday"]] <- sub("[+-]?\\d+([A-Z]+)", "\\1", tmp)
+                BYDAY[["n"]] <- as.numeric(sub("([+-]?\\d+)[A-Z]+", "\\1", tmp))
+            } else {
+                BYDAY[["wday"]] <- tmp
+                BYDAY[["n"]] <- rep(0, length(tmp))
+            }
+            x[["BYDAY"]] <- BYDAY
+        }
+
+        if ("BYMONTHDAY" %in% nm) {
+            tmp <- strsplit(x$BYMONTHDAY, ",", fixed = TRUE)[[1]]
+            tmp <- as.numeric(tmp)
+            x[["BYMONTHDAY"]] <- tmp
+        }
+
+        class(x) <- "RRULE"
+        x
+    })
+
+    for (i in seq_along(rules))
+        attr(rules[[i]], "RRULE") <- RRULE[i]
+    rules
 }
 
 .expand_rrule <-
@@ -633,96 +631,6 @@ function(DTSTART, DTEND,
     attr(ans, "rfc.violations") <- violations
     ans
 
-}
-
-.weekday <- function(dates)
-    unclass(dates + 4) %% 7
-
-.next_weekday <- function(wday, start, count = 1, interval = 1)
-    start + wday - unclass(start + 4) %% 7 +
-        rep(interval*7L*(seq_len(count) - 1L), each=length(wday))
-
-.is_ical_date <- function(s, ...)
-    grepl("^[0-9]{8}$", s)
-
-.date <- function(s, ...)
-    as.Date(s, "%Y%m%d")
-
-.utc_dt <- function(s, ...) {
-    ## trailing Z does not have to be removed
-    as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
-}
-
-.local_dt <- function(s) {
-    ans <- as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
-    attr(ans, "icalutils_localtime") <- TRUE
-    ans
-}
-
-## format time into character representation of UTC time
-## (basic format 8601: YmdHMSZ)
-.z <- function(t)
-    strftime(t, format = "%Y%m%dT%H%M%SZ", tz = "UTC")
-
-
-.parse_rrule <- function(RRULE, ...) {
-
-    ## takes a vector of one or more rrules (character) and
-    ## returns a list of lists
-
-    rules <- strsplit(RRULE, ";", fixed = TRUE)
-    rules <- lapply(rules, strsplit, "=", fixed = TRUE)
-    r.names <- lapply(rules, function(x) lapply(x, `[[`, 1))
-    r.names <- lapply(r.names, unlist)
-    rules <- lapply(rules, function(x) lapply(x, `[`, -1))
-
-    rules <- mapply(`names<-`, rules, r.names, SIMPLIFY = FALSE)
-
-    rules <- lapply(rules,
-                    function(x) {
-        nm <- names(x)
-        if ("INTERVAL" %in% nm)
-            x[["INTERVAL"]] <- as.numeric(x[["INTERVAL"]])
-        else
-            x[["INTERVAL"]] <- 1
-
-        if ("UNTIL" %in% nm)
-            if (.is_ical_date(x[["UNTIL"]]))
-                x[["UNTIL"]] <- .date(x[["UNTIL"]])
-            else
-                x[["UNTIL"]] <- .utc_dt(x[["UNTIL"]])
-
-        if ("BYMONTH" %in% nm) {
-            tmp <- strsplit(x$BYMONTH, ",", fixed = TRUE)[[1]]
-            tmp <- as.numeric(tmp)
-            x[["BYMONTH"]] <- tmp
-        }
-        if ("BYDAY" %in% nm) {
-            BYDAY <- list()
-            tmp <- toupper(strsplit(x$BYDAY, ",", fixed = TRUE)[[1]])
-            if (any(grepl("[+-]?\\d+[A-Z]+", tmp))) {
-                BYDAY[["wday"]] <- sub("[+-]?\\d+([A-Z]+)", "\\1", tmp)
-                BYDAY[["n"]] <- as.numeric(sub("([+-]?\\d+)[A-Z]+", "\\1", tmp))
-            } else {
-                BYDAY[["wday"]] <- tmp
-                BYDAY[["n"]] <- rep(0, length(tmp))
-            }
-            x[["BYDAY"]] <- BYDAY
-        }
-
-        if ("BYMONTHDAY" %in% nm) {
-            tmp <- strsplit(x$BYMONTHDAY, ",", fixed = TRUE)[[1]]
-            tmp <- as.numeric(tmp)
-            x[["BYMONTHDAY"]] <- tmp
-        }
-
-        class(x) <- "RRULE"
-        x
-    })
-
-    for (i in seq_along(rules))
-        attr(rules[[i]], "RRULE") <- RRULE[i]
-    rules
 }
 
 .properties <- function(s, ...) {

@@ -1,7 +1,5 @@
 export(
     "read_icalendar",
-    "read_vevent",
-    "read_vtimezone",
     "vevent",
     "to_vevent",
     "rrule")

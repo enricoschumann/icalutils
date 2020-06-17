@@ -3,6 +3,7 @@
         * R/functions.R (as.data.frame): new argument
         'components'; RRULEs are per default only
         expanded for events, todos
+	(read_event,read_timezone): remove functions
 
 2020-06-10  Enrico Schumann  <es@enricoschumann.net>
 
