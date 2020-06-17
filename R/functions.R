@@ -176,7 +176,10 @@ function(x,
          all.timestamps.POSIXct = TRUE,
          all.timestamps.Date = FALSE,
          timestamps.tz = "",
+         components = c("VEVENT", "VTODO"),
          ...) {
+
+    x <- x[unname(unlist(lapply(x, "class"))) %in% tolower(components)]
 
     res.df <- data.frame()
     fields <- c("UID", "SUMMARY", "DESCRIPTION", "LOCATION")
@@ -208,14 +211,12 @@ function(x,
 
     ## compute recurrances from original _start_ and _end_
     ## but allow for all.day adjustments
-
     if (recur.expand) {
         recurring.events <- list()
         RRULE <- lapply(x[recurring], `[[`, "RRULE")
         for (r in seq_along(RRULE)) {
             ## if ("EXDATE" %in% names(x[recurring][[r]]))
 
-            ## browser()
             created <- .expand_rrule(start[recurring][[r]],
                                      end  [recurring][[r]],
                                      RRULE = RRULE[[r]],
@@ -261,7 +262,8 @@ function(x,
                         stringsAsFactors = FALSE)
         ri <- which(recurring)
         for (r in seq_along(ri)) {
-            if (nrow(recurring.events[[r]]) <= 1L)
+            if (isFALSE(recurring.events[[r]]) ||  ## RRULE could not be expanded
+                nrow(recurring.events[[r]]) <= 1L)
                 next
             copy <- res.df[rep(ri[r], nrow(recurring.events[[r]])-1), ]
             copy$start <- recurring.events[[r]]$DTSTART[-1L]
@@ -471,11 +473,34 @@ function(DTSTART, DTEND,
                     is.null(RRULE$BYMONTHDAY) &&
                     is.null(RRULE$BYYEARDAY)  &&
                     is.null(RRULE$BYWEEKNO)   &&
-                    !is.null(RRULE$BYMONTH)    &&
+                   !is.null(RRULE$BYMONTH)    &&
                     is.null(RRULE$BYSETPOS)   &&
                     is.null(RRULE$WKST)) {
 
+        } else if ( is.null(RRULE$BYSECOND)   &&
+                    is.null(RRULE$BYMINUTE)   &&
+                    is.null(RRULE$BYHOUR)     &&
+                    is.null(RRULE$BYDAY)      &&
+                   !is.null(RRULE$BYMONTHDAY) &&
+                    is.null(RRULE$BYYEARDAY)  &&
+                    is.null(RRULE$BYWEEKNO)   &&
+                    is.null(RRULE$BYMONTH)    &&
+                    is.null(RRULE$BYSETPOS)   &&
+                    is.null(RRULE$WKST)) {
 
+            dates <- seq(as.Date(DTSTART), as.Date(UNTIL), by = "1 day")
+            dates <- dates[mday(dates) %in% RRULE$BYMONTHDAY]
+            if (DTSTART.isdate) {
+
+
+            } else {
+                datetimes <- as.POSIXlt(dates, tz = attr(DTSTART, "tzone"))
+                datetimes$hour <- DTSTARTlt$hour
+
+                datetimes$min <- DTSTARTlt$min
+                datetimes$sec <- DTSTARTlt$sec
+
+            }
 
         } else {
 
@@ -510,6 +535,8 @@ function(DTSTART, DTEND,
             ## TODO BYSECOND
             ## TODO BYSETPOS
 
+            ## ans <- data.frame(DTSTART = DTSTARTs,
+            ##                   DTEND = DTENDs)
 
 
 
@@ -759,14 +786,16 @@ function(DTSTART, DTEND,
             i.utc <- which(i)
             v.utc <- .utc_dt(txt[i])
             done[i] <- TRUE
-        }
+        } else
+            i.utc <- NULL
 
         i <- !done & is.dt & grepl("VALUE=DATE", param, ignore.case = TRUE)
         if (any(i)) {
             i.date <- which(i)
             v.date <- as.Date(txt[i], format = "%Y%m%d")
             done[i] <- TRUE
-        }
+        } else
+            i.date <- NULL
 
         i <- !done & is.dt & grepl("TZID", param, ignore.case = TRUE)
         if (any(i)) {

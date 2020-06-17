@@ -20,17 +20,18 @@ To install the package from a running R session, type:
 
 or clone/build the GitHub version.
 
+
 * Examples
 
 #+BEGIN_SRC R :results output :exports both :session **R**
   library("icalutils")
-  as.data.frame(read_vevent("/path/to/file"))
+  as.data.frame(read_icalendar("/path/to/file"))
 #+END_SRC
 
 Computing recurring events (such as birthdays):
 
 #+BEGIN_SRC R :results output :exports both :session **R**
-  as.data.frame(read_vevent("/path/to/file"), 
+  as.data.frame(read_calendar("/path/to/file"), 
                 recur.expand = TRUE,
                 recur.until = Sys.Date + 30) ## events in next 30 days
 #+END_SRC
@@ -38,10 +39,10 @@ Computing recurring events (such as birthdays):
 Recurrence sets can be computed with function =rrule=.
 
 #+BEGIN_SRC R :results output :exports both :session **R**
-rrule(dtstart = as.Date("2019-12-01"),
-      dtend   = as.Date("2019-12-01"),
-      freq = "yearly",
-      count = 5)
+  rrule(dtstart = as.Date("2019-12-01"),
+	dtend   = as.Date("2019-12-01"),
+	freq = "yearly",
+	count = 5)
 #+END_SRC
 
 #+RESULTS:
@@ -57,3 +58,50 @@ $recurrence_set
 4 2022-12-01 2022-12-01
 5 2023-12-01 2023-12-01
 #+end_example
+
+
+Setting up a daily email.
+
+#+begin_src R
+  library("icalutils")
+  library("mailtools")  ## https://github.com/enricoschumann/mailtools 
+
+  file <- "/path/to/file"
+  lookahead <- 30
+
+  ic <- read_icalendar(file, components = "VEVENT")
+
+  df <- as.data.frame(ic, 
+		      recur.expand = TRUE,
+		      recur.until = Sys.Date() + lookahead)
+  df <- df[df$start >= as.POSIXct(paste(Sys.Date(), "00:00:00")) &
+	   df$start <  as.POSIXct(Sys.Date() + lookahead), ]
+
+  df <- df[order(df$start), ]
+  start <- as.Date(df$start, tz = "")
+  end <- as.Date(df$end, tz = "")
+
+  dt <- as.character(start)
+  ii <- start != end
+  dt[ii] <- paste(as.character(start[ii]), "--", as.character(end[ii]))
+  dt
+
+  sendmail(subject = "Kalender",
+	   body = c("",
+		    paste("Calendar entries for the next", lookahead,  "days"),
+		    "",
+		    "",
+		    paste0(substr(format(df$summary, width = 25), 1, 40),
+			   "  [", dt, "]"),
+		    ""),
+
+	   method   = "sendemail",
+	   to       = "<someone@somewhere.net>",
+	   from     = "<someone@somewhere.net>",
+	   port     = 587,
+	   server   = "<server.net>",
+	   user     = "<username>",
+	   password = "",
+	   headers  = "X-MAIL-CATEGORY: daily calendar report")
+
+#+end_src
