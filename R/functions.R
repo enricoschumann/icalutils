@@ -205,6 +205,15 @@ function(x,
 .weekday <- function(dates)
     unclass(dates + 4) %% 7
 
+.weekdayS <- function(dates)
+        c("SU",
+          "MO",
+          "TU",
+          "WE",
+          "TH",
+          "FR",
+          "SA")[unclass(dates + 4) %% 7 + 1]
+
 .next_weekday <- function(wday, start, count = 1, interval = 1)
     start + wday - unclass(start + 4) %% 7 +
         rep(interval*7L*(seq_len(count) - 1L), each = length(wday))
@@ -252,6 +261,9 @@ function(x,
         else
             x[["INTERVAL"]] <- 1
 
+        if ("COUNT" %in% nm)
+            x[["COUNT"]] <- as.numeric(x[["COUNT"]])
+
         if ("UNTIL" %in% nm)
             if (.is_ical_date(x[["UNTIL"]]))
                 x[["UNTIL"]] <- .date(x[["UNTIL"]])
@@ -259,7 +271,7 @@ function(x,
                 x[["UNTIL"]] <- .utc_dt(x[["UNTIL"]])
 
         if ("BYMONTH" %in% nm) {
-            tmp <- strsplit(x$BYMONTH, ",", fixed = TRUE)[[1]]
+            tmp <- strsplit(x[["BYMONTH", exact = TRUE]], ",", fixed = TRUE)[[1]]
             tmp <- as.numeric(tmp)
             x[["BYMONTH"]] <- tmp
         }
@@ -281,6 +293,11 @@ function(x,
             tmp <- as.numeric(tmp)
             x[["BYMONTHDAY"]] <- tmp
         }
+        if ("BYSETPOS" %in% nm) {
+            tmp <- strsplit(x$BYSETPOS, ",", fixed = TRUE)[[1]]
+            tmp <- as.numeric(tmp)
+            x[["BYSETPOS"]] <- tmp
+        }
 
         class(x) <- "RRULE"
         x
@@ -294,8 +311,7 @@ function(x,
 .expand_rrule <-
 function(DTSTART, DTEND,
          RRULE, RDATE, EXDATE,
-         UNTIL = NULL, COUNT = NULL,
-         msg.violations = TRUE) {
+         UNTIL = NULL, COUNT = NULL) {
 
     RRULE.text <- attr(RRULE, "RRULE")
     FREQ <- toupper(RRULE$FREQ)
@@ -305,15 +321,26 @@ function(DTSTART, DTEND,
     DTSTART.isdate <- inherits(DTSTART, "Date")
     DTSTARTlt <- as.POSIXlt(DTSTART)
 
+    BYSECOND   <- RRULE[["BYSECOND",   exact = TRUE]]
+    BYMINUTE   <- RRULE[["BYMINUTE",   exact = TRUE]]
+    BYHOUR     <- RRULE[["BYHOUR",     exact = TRUE]]
+    BYDAY      <- RRULE[["BYDAY",      exact = TRUE]]
+    BYMONTHDAY <- RRULE[["BYMONTHDAY", exact = TRUE]]
+    BYYEARDAY  <- RRULE[["BYYEARDAY",  exact = TRUE]]
+    BYWEEKNO   <- RRULE[["BYWEEKNO",   exact = TRUE]]
+    BYMONTH    <- RRULE[["BYMONTH",    exact = TRUE]]
+    BYSETPOS   <- RRULE[["BYSETPOS",   exact = TRUE]]
+    WKST       <- RRULE[["WKST",       exact = TRUE]]
+
     violations <- NULL
 
     if (!is.null(RRULE$UNTIL)) {
 
         ## use UNTIL if UNTIL is 1) specified and 2) smaller than RRULE$UNTIL,
-        if (!(!is.null(UNTIL) && as.POSIXct(UNTIL) < as.POSIXct(RRULE$UNTIL)))
+        if (is.null(UNTIL) || as.POSIXct(UNTIL) < as.POSIXct(RRULE$UNTIL))
             UNTIL <- RRULE$UNTIL
-        if (!class(DTSTART) %in% class(UNTIL) && msg.violations) {
-            message("DTSTART and UNTIL are not of the same type [3.3.10.]")
+        if (!inherits(UNTIL, class(DTSTART))) {
+            ## message("DTSTART and UNTIL are not of the same type [3.3.10.]")
             violations <- c(violations,
                             "DTSTART and UNTIL are not of the same type [RFC 5545, 3.3.10.]")
             if (!inherits(DTSTART, "Date"))
@@ -339,51 +366,44 @@ function(DTSTART, DTEND,
         UNTIL <- as.Date(as.POSIXlt(UNTIL))
     else if (!DTSTART.isdate && inherits(UNTIL, "Date"))
         UNTIL <- as.POSIXct(as.POSIXlt(UNTIL))
-    ## if (inherits(DTSTART, "DATE"))
-    ##     UNTIL <- as.Date("2025-1-1")
-    ## else if (inherits(DTSTART, "POSIXct"))
-    ##     UNTIL <- as.POSIXct("2025-1-1 10:00:00")
 
     ans <- FALSE
     if (FREQ == "YEARLY") {
 
-        if        ( is.null(RRULE$BYSECOND)   &&
-                    is.null(RRULE$BYMINUTE)   &&
-                    is.null(RRULE$BYHOUR)     &&
-                    is.null(RRULE$BYDAY)      &&
-                    is.null(RRULE$BYMONTHDAY) &&
-                    is.null(RRULE$BYYEARDAY)  &&
-                    is.null(RRULE$BYWEEKNO)   &&
-                    is.null(RRULE$BYMONTH)    &&
-                    is.null(RRULE$BYSETPOS)   &&
-                    is.null(RRULE$WKST)) {
+        if        ( is.null(BYSECOND)   &&
+                    is.null(BYMINUTE)   &&
+                    is.null(BYHOUR)     &&
+                    is.null(BYDAY)      &&
+                    is.null(BYMONTHDAY) &&
+                    is.null(BYYEARDAY)  &&
+                    is.null(BYWEEKNO)   &&
+                    is.null(BYMONTH)    &&
+                    is.null(BYSETPOS)   &&
+                    is.null(WKST)) {
 
-            if (DTSTART.isdate) {
-                if (!is.null(UNTIL))
-                    DTSTARTs <- seq(DTSTART, to = UNTIL, by = paste(INTERVAL, "year"))
-                else
-                    DTSTARTs <- seq(DTSTART, length.out = COUNT, by = paste(INTERVAL, "year"))
-                if (!is.null(DTEND)) {
-                    DTENDs <- DTSTARTs + unclass(DTEND - DTSTART)
-                    ans <- data.frame(DTSTART = DTSTARTs,
-                                      DTEND = DTENDs)
-                } else {
-                    ans <- data.frame(DTSTART = DTSTARTs)
-                }
+            ## rules work for Date and POSIXct
+            if (!is.null(UNTIL))
+                DTSTARTs <- seq(DTSTART, to = UNTIL, by = paste(INTERVAL, "year"))
+            else
+                DTSTARTs <- seq(DTSTART, length.out = COUNT, by = paste(INTERVAL, "year"))
+            if (!is.null(DTEND)) {
+                DTENDs <- DTSTARTs + unclass(DTEND - DTSTART)
+                ans <- data.frame(DTSTART = DTSTARTs,
+                                  DTEND   = DTENDs)
             } else {
-                NA
+                ans <- data.frame(DTSTART = DTSTARTs)
             }
 
-        } else if ( is.null(RRULE$BYSECOND)   &&
-                    is.null(RRULE$BYMINUTE)   &&
-                    is.null(RRULE$BYHOUR)     &&
-                   !is.null(RRULE$BYDAY)      &&
-                 ## is.null(RRULE$BYMONTHDAY) &&
-                    is.null(RRULE$BYYEARDAY)  &&
-                    is.null(RRULE$BYWEEKNO)   &&
-                   !is.null(RRULE$BYMONTH)    &&
-                    is.null(RRULE$BYSETPOS)   &&
-                    is.null(RRULE$WKST)) {
+        } else if ( is.null(BYSECOND)   &&
+                    is.null(BYMINUTE)   &&
+                    is.null(BYHOUR)     &&
+                   !is.null(BYDAY)      &&
+                 ## is.null(BYMONTHDAY) &&
+                    is.null(BYYEARDAY)  &&
+                    is.null(BYWEEKNO)   &&
+                   !is.null(BYMONTH)    &&
+                    is.null(BYSETPOS)   &&
+                    is.null(WKST)) {
 
             dates <- seq(as.Date(DTSTART, "%Y%m%d"),
                          as.Date(UNTIL, "%Y%m%d"), by = "1 day")
@@ -460,45 +480,71 @@ function(DTSTART, DTEND,
         }
 
     } else if (FREQ == "MONTHLY") {
+        ## browser()
 
 
-        ##then COUNT and UNTIL
+        if (##is.null(BYSECOND)   &&
+            ##is.null(BYMINUTE)   &&
+            ##is.null(BYHOUR)     &&
+            ## is.null(BYDAY)      &&
+            ## is.null(BYMONTHDAY) &&
+            is.null(BYYEARDAY)  &&
+            is.null(BYWEEKNO)   &&
+            ##is.null(BYMONTH)    &&
+            ## is.null(BYSETPOS)   &&
+            is.null(WKST)) {
 
-        if        ( is.null(RRULE$BYSECOND)   &&
-                    is.null(RRULE$BYMINUTE)   &&
-                    is.null(RRULE$BYHOUR)     &&
-                    is.null(RRULE$BYDAY)      &&
-                    is.null(RRULE$BYMONTHDAY) &&
-                    is.null(RRULE$BYYEARDAY)  &&
-                    is.null(RRULE$BYWEEKNO)   &&
-                   !is.null(RRULE$BYMONTH)    &&
-                    is.null(RRULE$BYSETPOS)   &&
-                    is.null(RRULE$WKST)) {
+            if (is.null(UNTIL) && !is.null(COUNT))
+                dates <- seq(as.POSIXct(as.character(DTSTART), tz = "UTC"),
+                             by = "1 day",
+                             length.out = COUNT*31)
+            else
+                dates <- seq(as.POSIXct(as.character(DTSTART), tz = "UTC"),
+                             as.POSIXct(as.character(UNTIL), tz = "UTC"),
+                             by = "1 day")
 
-        } else if ( is.null(RRULE$BYSECOND)   &&
-                    is.null(RRULE$BYMINUTE)   &&
-                    is.null(RRULE$BYHOUR)     &&
-                    is.null(RRULE$BYDAY)      &&
-                   !is.null(RRULE$BYMONTHDAY) &&
-                    is.null(RRULE$BYYEARDAY)  &&
-                    is.null(RRULE$BYWEEKNO)   &&
-                    is.null(RRULE$BYMONTH)    &&
-                    is.null(RRULE$BYSETPOS)   &&
-                    is.null(RRULE$WKST)) {
+            if (!is.null(BYMONTHDAY))
+                dates <- dates[mday(dates) %in% BYMONTHDAY]
+            if (!is.null(BYMONTH))
+                dates <- dates[ month(dates) %in% RRULE[["BYMONTH", exact = TRUE]] ]
 
-            dates <- seq(as.Date(DTSTART), as.Date(UNTIL), by = "1 day")
-            dates <- dates[mday(dates) %in% RRULE$BYMONTHDAY]
-            if (DTSTART.isdate) {
+            if (!is.null(BYDAY)) {
+                if (all(BYDAY$n == 0)) {
+                    dates <- dates[.weekdayS(as.Date(dates)) %in% BYDAY$wday]
 
-
-            } else {
-                datetimes <- as.POSIXlt(dates, tz = attr(DTSTART, "tzone"))
-                datetimes$hour <- DTSTARTlt$hour
-
-                datetimes$min <- DTSTARTlt$min
-                datetimes$sec <- DTSTARTlt$sec
-
+                    if (!is.null(BYSETPOS)) {
+                        dates <- tapply(dates, format(dates, "%Y-%m"),
+                                        function(x) if (length(x) < max(BYSETPOS))
+                                                        NULL else x[BYSETPOS])
+                        if (is.list(dates))
+                            dates <- unlist(dates)
+                        dates <- unname(.POSIXct(dates, tz = "UTC"))
+                    }
+                }
             }
+            if (!is.null(COUNT))
+                dates <- dates[1:COUNT]
+
+            DTSTARTs <- dates
+            if (!is.null(DTEND))
+                DTENDs  <- DTSTARTs + (DTEND - DTSTART)
+            if (!DTSTART.isdate) {
+                DTSTARTs <- as.POSIXct(as.character(DTSTARTs),
+                                       tz = attr(DTSTART, "tzone"))
+                if (!is.null(DTEND))
+                    DTENDs   <- as.POSIXct(as.character(DTENDs),
+                                           tz = attr(DTSTART, "tzone"))
+            } else {
+                DTSTARTs <- as.Date(as.POSIXlt(DTSTARTs))
+                if (!is.null(DTEND))
+                    DTENDs   <- as.Date(as.POSIXlt(DTENDs))
+            }
+            if (!is.null(DTEND))
+                ans <- data.frame(DTSTART = DTSTARTs,
+                                  DTEND   = DTENDs)
+            else
+                ans <- data.frame(DTSTART = DTSTARTs)
+
 
         } else {
 
@@ -616,9 +662,13 @@ function(DTSTART, DTEND,
 
                 ## FIXME: the difference between DTSTART and DTEND
                 ## should be independent of timezone changes
-                DTENDs <- DTSTARTs + unclass(DTEND) - unclass(DTSTART)
-                ans <- data.frame(DTSTART = DTSTARTs,
-                                  DTEND = DTENDs)
+                if (is.null(DTEND))
+                    ans <- data.frame(DTSTART = DTSTARTs)
+                else {
+                    DTENDs <- DTSTARTs + (DTEND - DTSTART)
+                    ans <- data.frame(DTSTART = DTSTARTs,
+                                      DTEND = DTENDs)
+                }
             }
         }
     }
@@ -857,7 +907,7 @@ function(dtstart,
         stop("specify either ", sQuote("count"),
              " or ", sQuote("until"), ", but not both")
     if (!is.null(text)) {
-        text <- sub("^RRULE:", "", text)
+        text <- sub("^RRULE:", "", text, ignore.case = TRUE)
         rrule <- .parse_rrule(text)[[1L]]
     } else {
         rrule <- list(
@@ -893,8 +943,7 @@ function(dtstart,
                       RDATE   = rdate,
                       EXDATE  = exdate,
                       UNTIL   = until,
-                      COUNT   = count,
-                      msg.violations = FALSE)
+                      COUNT   = count)
     ans
 }
 
