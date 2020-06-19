@@ -9,15 +9,13 @@ Authors@R: c(person("Enrico", "Schumann",
                     comment = c(ORCID = "0000-0001-7601-6576")),
              person("Unicode, Inc.", role = c("dtc", "cph")))
 Maintainer: Enrico Schumann <es@enricoschumann.net>
-Description: Utilities for handling icalendar data, in
-  particular reading and creating/writing icalendar
-  files.  The package is written in pure R, with no
-  strict dependencies (package 'base64enc' is only
-  needed if calendar files have attachments).  The
-  package maps iCalendar dates and date-times to R's
-  native 'Date' and 'POSIXct' classes.  Recurring items
-  (such as birthdays) can be expanded.  Timezones are
-  supported.
+Description: Utilities for handling iCalendar data, in particular
+  reading and creating/writing iCalendar files.  The package is
+  written in pure R, with no strict dependencies (package
+  'base64enc' is only needed if calendar files have attachments).
+  The package maps iCalendar dates and date-times to R's native
+  'Date' and 'POSIXct' classes.  Recurring items (such as birthdays)
+  can be expanded.  Timezones are supported.
 License: GPL-3
 URL: http://enricoschumann.net/R/packages/icalutils,
      https://github.com/enricoschumann/icalutils
