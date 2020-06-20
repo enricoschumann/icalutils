@@ -337,7 +337,7 @@ function(DTSTART, DTEND,
     if (!is.null(RRULE$UNTIL)) {
 
         ## use UNTIL if UNTIL is 1) specified and 2) smaller than RRULE$UNTIL,
-        if (is.null(UNTIL) || as.POSIXct(UNTIL) < as.POSIXct(RRULE$UNTIL))
+        if (is.null(UNTIL) || as.POSIXct(UNTIL) > as.POSIXct(RRULE$UNTIL))
             UNTIL <- RRULE$UNTIL
         if (!inherits(UNTIL, class(DTSTART))) {
             ## message("DTSTART and UNTIL are not of the same type [3.3.10.]")
