@@ -2,13 +2,11 @@ export(
     "read_icalendar",
     "vevent",
     "to_vevent",
-    "rrule")
+    "rrule",
+    "save_attachments")
 
 importFrom("stats", "runif")
 importFrom("utils", "packageVersion")
 
-## importFrom("textutils", "fill_in")
-
 S3method("as.data.frame", "icalendar")
-
 S3method("print", "icalendar")

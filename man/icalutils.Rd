@@ -54,7 +54,10 @@ to_vevent(x, \dots)
     written (\code{vevent}).}
 
   \item{strict.eol}{logical. RFC 5545 says that the end of line should
-    be signalled by CRLF.}
+    be signalled by CRLF. But iCalendar files often use a simple LF
+    instead, e.g. when being sent unguarded as email attachments, or
+    when used with version control systems such as Git.
+  }
 
   \item{adjust.allday}{logical.  If \code{TRUE}, the end day is moved
     one day back.  If an all-day event ends on a given day, its end is
@@ -82,7 +85,7 @@ to_vevent(x, \dots)
     data.frame. This is used for local time: timestamps that have no
     timezone information attached.  Default is \code{""}, which means to
     use the current timezone.}
-  
+
   \item{\dots}{additional arguments}
 
   \item{x}{a list with class attribute \code{vevent} or, for
@@ -101,18 +104,18 @@ to_vevent(x, \dots)
     \code{YEARLY} }
 
   \item{until}{\code{\link{Date}} or \code{\link{POSIXct}} }
-  
+
   \item{count}{integer }
-  
+
   \item{interval}{ integer. Default is 1.  }
-  
+
   \item{bysecond}{a vector of integers between 0 and 60 (though 60 will
     be changed to 59, to comply with the POSIX standard) }
-  
+
   \item{byminute}{a vector of integers }
-  
+
   \item{byhour}{a vector of integers }
-  
+
   \item{byday}{ The weekdays (Monday, Tuesday, ...) on which an event
     takes place. Takes either a vector of two-letter weekday
     abbreviations (\code{mo}, \code{tu}, ...), or a list of two vectors.
@@ -168,7 +171,7 @@ to_vevent(x, \dots)
   The \link{as.data.frame} method returns a \code{\link{data.frame}} of
   a selection of properties of the events; see Value section below.
 
-  
+
   \subsection{Terminology}{
 
     An iCalendar stream (typically, a file) consist of one or more

@@ -1,3 +1,7 @@
+2020-06-21  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/functions.R (save_attachments): add function
+
 2020-06-18  Enrico Schumann  <es@enricoschumann.net>
 
         * R/functions.R (.expand_rrule): refactor RRULE

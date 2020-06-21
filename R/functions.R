@@ -17,7 +17,13 @@
 }
 
 .unfold <- function(s, strict.eol) {
-    s <- gsub(if (strict.eol) .fold.re.strict else .fold.re, "", s)
+    re <- if (is.character(strict.eol))
+              strict.eol
+          else if (strict.eol)
+              .fold.re.strict
+          else
+              .fold.re
+    s <- gsub(re, "", s)
     strsplit(s, "\r?\n")[[1L]]
 }
 
@@ -231,7 +237,7 @@ function(x,
 
 .local_dt <- function(s) {
     ans <- as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
-    attr(ans, "icalutils_localtime") <- TRUE
+    attr(ans, "localtime") <- TRUE
     ans
 }
 
@@ -1025,4 +1031,37 @@ function(dtstart,
     } else
         event
 
+}
+
+save_attachments <- function(file, out.dir,
+                             strict.eol = TRUE) {
+
+    cal.txt <- .read_one_line(file)
+    cal.txt <- .unfold(cal.txt, strict.eol)
+    cal <- .properties(cal.txt)
+
+    if (length(i <- grep("^ATTACH$", names(cal), ignore.case = TRUE))) {
+        attachments <- cal[i]
+        filenames <- rep("", length(attachments))
+
+        spec.fn <- unlist(lapply(attachments, attr, "parameters"))
+        i <- grep("x-filename", spec.fn, ignore.case = TRUE)
+        spec.fn <- gsub(".*X-FILENAME=([^;]*)", "\\1", spec.fn)
+        filenames[i] <- spec.fn
+        filenames <- make.unique(filenames)
+
+        base64 <- TRUE
+        if (!requireNamespace("base64enc")) {
+            warning("save attachments, but cannot decode them")
+            base64 <- FALSE
+        }
+        for (i in seq_along(attachments)) {
+            fn <- tempfile()
+            writeLines(attachments[[i]], fn)
+            if (base64)
+                base64enc::base64decode(file = fn, output = file.path(out.dir, filenames[i]))
+        }
+        filenames
+    } else
+        invisible(NULL)
 }
