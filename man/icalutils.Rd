@@ -1,11 +1,12 @@
 \name{icalutils}
-\alias{icalutils}
-\alias{icalutils-package}
-\alias{read_icalendar}
 \alias{as.data.frame.icalendar}
+\alias{icalutils-package}
+\alias{icalutils}
+\alias{read_icalendar}
 \alias{rrule}
-\alias{vevent}
+\alias{save_attachments}
 \alias{to_vevent}
+\alias{vevent}
 \concept{icalendar}
 \title{
   Read and Create iCalendar Data
@@ -47,21 +48,30 @@ vevent(dtstart, summary, dtend = NULL,
        vcalendar = TRUE, file, fold = TRUE)
 
 to_vevent(x, \dots)
+
+save_attachments(file, out.dir, strict.eol = TRUE)
 }
 \arguments{
 
-  \item{file}{character. The file to be read (\code{read_icalendar}) or
+  \item{file}{character. The file to be read
+    (\code{read_icalendar}, \code{save_attachments}) or
     written (\code{vevent}).}
 
-  \item{strict.eol}{logical. RFC 5545 says that the end of line should
-    be signalled by CRLF. But iCalendar files often use a simple LF
-    instead, e.g. when being sent unguarded as email attachments, or
-    when used with version control systems such as Git.
-  }
+  \item{out.dir}{character: the directory where to store
+    attachments}
 
-  \item{adjust.allday}{logical.  If \code{TRUE}, the end day is moved
-    one day back.  If an all-day event ends on a given day, its end is
-    stored as the next day in the icalendar format.}
+  \item{strict.eol}{logical. \acronym{RFC} 5545 says that
+    the end of a line should be signalled by CRLF, and when
+    \code{strict.eol} is \code{TRUE}, such line ends are
+    required.  (This also means that when long lines are
+    unfolded, the function looks for CRLF followed by a
+    space character.)  iCalendar files that use a simple LF
+    may be read with \code{strict.eol} set to \code{FALSE}.}
+
+  \item{adjust.allday}{logical.  If \code{TRUE}, the end day
+    is moved one day back.  If an all-day event ends on a
+    given day, its end is stored as the next day in the
+    icalendar format.}
 
   \item{recur.expand}{logical}
 
@@ -69,27 +79,30 @@ to_vevent(x, \dots)
 
   \item{recur.count}{an integer}
 
-  \item{use.OlsonNames}{logical. Map timezone names in file to names
-    returned by \code{\link{OlsonNames}}?  }
+  \item{use.OlsonNames}{logical. Map timezone names in file
+    to names returned by \code{\link{OlsonNames}}?}
 
-  \item{uid.names}{logical: use \code{UID} values as names for the
-    resulting list?  Careful with Outlook: \code{UID}s are often
-    insanely long.}
+  \item{uid.names}{logical: use \code{UID} values as names
+    for the resulting list?  Careful with Outlook:
+    \code{UID}s are often insanely long.}
 
-  \item{all.timestamps.POSIXct}{logical. To recover the original
-    \code{Date}, use \code{as.Date(..., tz = "<tz>")}.}
+  \item{all.timestamps.POSIXct}{logical. To recover the
+    original \code{Date}, use \code{as.Date(..., tz =
+    "<tz>")}.}
 
   \item{all.timestamps.Date}{logical}
 
-  \item{timestamps.tz}{character. Applies only if return.class is
-    data.frame. This is used for local time: timestamps that have no
-    timezone information attached.  Default is \code{""}, which means to
-    use the current timezone.}
+  \item{timestamps.tz}{character. Applies only if
+    return.class is data.frame. This is used for local time:
+    timestamps that have no timezone information attached.
+    Default is \code{""}, which means to use the current
+    timezone.}
 
   \item{\dots}{additional arguments}
 
   \item{x}{a list with class attribute \code{vevent} or, for
-  \code{to_event} an object for which a coercion method exists}
+    \code{to_event} an object for which a coercion method
+    exists}
 
   \item{row.names}{see \code{\link{as.data.frame}}}
 
@@ -99,28 +112,28 @@ to_vevent(x, \dots)
 
   \item{dtend}{\code{\link{Date}} or \code{\link{POSIXct}}}
 
-  \item{freq}{a character string: \code{SECONDLY}, \code{MINUTELY},
-    \code{HOURLY}, \code{DAILY}, \code{WEEKLY}, \code{MONTHLY}, or
-    \code{YEARLY} }
+  \item{freq}{a character string: \code{SECONDLY},
+    \code{MINUTELY}, \code{HOURLY}, \code{DAILY},
+    \code{WEEKLY}, \code{MONTHLY}, or \code{YEARLY} }
 
   \item{until}{\code{\link{Date}} or \code{\link{POSIXct}} }
 
   \item{count}{integer }
 
-  \item{interval}{ integer. Default is 1.  }
+  \item{interval}{integer. Default is 1.}
 
-  \item{bysecond}{a vector of integers between 0 and 60 (though 60 will
-    be changed to 59, to comply with the POSIX standard) }
+  \item{bysecond}{a vector of integers between 0 and 60
+    (though 60 will be changed to 59, to comply with the
+    POSIX standard) }
 
   \item{byminute}{a vector of integers }
 
   \item{byhour}{a vector of integers }
 
-  \item{byday}{ The weekdays (Monday, Tuesday, ...) on which an event
-    takes place. Takes either a vector of two-letter weekday
-    abbreviations (\code{mo}, \code{tu}, ...), or a list of two vectors.
-
-  }
+  \item{byday}{The weekdays (Monday, Tuesday, ...) on which
+    an event takes place. Takes either a vector of
+    two-letter weekday abbreviations (\code{mo}, \code{tu},
+    ...), or a list of two vectors.}
 
   \item{bymonthday}{a vector of integers }
 
@@ -148,8 +161,8 @@ to_vevent(x, \dots)
 
   \item{description}{character}
 
-  \item{uid}{character. If \code{NULL}, a UID is genereated as suggest
-    at \url{https://www.jwz.org/doc/mid.html} .}
+  \item{uid}{character. If \code{NULL}, a UID is genereated
+    as suggest at \url{https://www.jwz.org/doc/mid.html} .}
 
   \item{all.day}{logical}
 
