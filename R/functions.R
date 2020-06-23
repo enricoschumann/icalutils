@@ -220,9 +220,16 @@ function(x,
           "FR",
           "SA")[unclass(dates + 4) %% 7 + 1]
 
-.next_weekday <- function(wday, start, count = 1, interval = 1)
-    start + wday - unclass(start + 4) %% 7 +
-        rep(interval*7L*(seq_len(count) - 1L), each = length(wday))
+.next_weekday <- function(wday, start, count = 1, interval = 1) {
+    ## wday : 0 SU, 1 MO ... => target day
+    ## start: a date
+    if (count == 0)
+        return(numeric(0L))
+    ans <- (wday - .weekday(start)) %% 7 +
+        rep(7 * interval * seq(0, count - 1), each = length(wday))
+    ans <- sort(ans) + start
+    ans[seq_len(count)]
+}
 
 .is_ical_date <- function(s, ...)
     grepl("^[0-9]{8}$", s)
@@ -602,8 +609,9 @@ function(DTSTART, DTEND,
                     is.null(RRULE$BYYEARDAY)  &&
                     is.null(RRULE$BYWEEKNO)   &&
                     is.null(RRULE$BYMONTH)    &&
-                    is.null(RRULE$BYSETPOS)   &&
-                    is.null(RRULE$WKST)) {
+                    is.null(RRULE$BYSETPOS)  ## &&
+                    #is.null(RRULE$WKST)
+                   ) {
 
             if (DTSTART.isdate) {
                 if (is.null(COUNT))
@@ -613,10 +621,15 @@ function(DTSTART, DTEND,
                                      start = DTSTART,
                                      count = COUNT,
                                      interval = INTERVAL)
-                DTSTARTs <- ans[ans <= as.Date(UNTIL)]
-                DTENDs <- DTSTARTs + unclass(DTEND - DTSTART)
-                ans <- data.frame(DTSTART = DTSTARTs,
-                                  DTEND = DTENDs)
+                if (!is.null(UNTIL))
+                    DTSTARTs <- ans[ans <= as.Date(UNTIL)]
+                else
+                    DTSTARTs <- ans
+                if (is.null(DTEND))
+                    ans <- data.frame(DTSTART = DTSTARTs)
+                else
+                    ans <- data.frame(DTSTART = DTSTARTs,
+                                      DTEND = DTSTARTs + unclass(DTEND - DTSTART))
 
             } else {
                 if (is.null(COUNT))

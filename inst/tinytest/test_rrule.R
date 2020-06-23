@@ -631,6 +631,12 @@ expect_equal(length(res$recurrence_set$DTSTART), 5)
 ##        RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=4;BYDAY=TU,SU;WKST=MO
 ##
 ##        ==> (1997 EDT) August 5,10,19,24
+
+rrule(dtstart = as.POSIXct("1997-08-05 09:00:00"),
+      dtend = as.POSIXct("1997-08-05 09:00:00"),
+      text = "FREQ=WEEKLY;INTERVAL=2;COUNT=4;BYDAY=TU,SU;WKST=MO")
+
+
 ##
 ##       changing only WKST from MO to SU, yields different results...
 ##
@@ -639,6 +645,9 @@ expect_equal(length(res$recurrence_set$DTSTART), 5)
 ##
 ##      ==> (1997 EDT) August 5,17,19,31
 
+rrule(dtstart = as.POSIXct("1997-08-05 09:00:00"),
+      dtend = as.POSIXct("1997-08-05 09:00:00"),
+      text = "FREQ=WEEKLY;INTERVAL=2;COUNT=4;BYDAY=TU,SU;WKST=MO")
 
 
 

@@ -1,3 +1,7 @@
+2020-06-23  Enrico Schumann  <es@enricoschumann.net>
+
+	* R/functions.R (.next_weekday): rewrite function
+
 2020-06-21  Enrico Schumann  <es@enricoschumann.net>
 
         * R/functions.R (save_attachments): add function

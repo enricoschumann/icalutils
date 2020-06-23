@@ -1,6 +1,4 @@
 
-
-
 ## ---------------- [ .next_weekday ] ----------------
 
 start <- as.Date("2020-1-1") ## Wednesday
