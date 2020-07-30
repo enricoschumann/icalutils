@@ -383,6 +383,19 @@ function(DTSTART, DTEND,
     ans <- FALSE
     if (FREQ == "YEARLY") {
 
+        ## RFC 5545, 3.3.10: The WKST rule part specifies the day
+        ##     on which the workweek starts.  Valid values are
+        ##     MO, TU, WE, TH, FR, SA, and SU.  This is
+        ##     significant when a WEEKLY "RRULE" has an interval
+        ##     greater than 1, and a BYDAY rule part is
+        ##     specified.  This is also significant when in a
+        ##     YEARLY "RRULE" when a BYWEEKNO rule part is
+        ##     specified.  The default value is MO.
+
+        if (!is.null(BYWEEKNO) && !is.null(WKST))
+            warning(RRULE.text, ": ",
+                    sQuote("WKST"), " is currently ignored")
+
         if        ( is.null(BYSECOND)   &&
                     is.null(BYMINUTE)   &&
                     is.null(BYHOUR)     &&
@@ -595,23 +608,34 @@ function(DTSTART, DTEND,
             ## ans <- data.frame(DTSTART = DTSTARTs,
             ##                   DTEND = DTENDs)
 
-
-
-
-
         }
     } else if (FREQ == "WEEKLY") {
-        if        ( is.null(RRULE$BYSECOND)   &&
-                    is.null(RRULE$BYMINUTE)   &&
-                    is.null(RRULE$BYHOUR)     &&
-                   !is.null(RRULE$BYDAY)      &&
-                    is.null(RRULE$BYMONTHDAY) &&
-                    is.null(RRULE$BYYEARDAY)  &&
-                    is.null(RRULE$BYWEEKNO)   &&
-                    is.null(RRULE$BYMONTH)    &&
-                    is.null(RRULE$BYSETPOS)  ## &&
-                    #is.null(RRULE$WKST)
+
+        ## RFC 5545, 3.3.10: The WKST rule part specifies the day
+        ##     on which the workweek starts.  Valid values are
+        ##     MO, TU, WE, TH, FR, SA, and SU.  This is
+        ##     significant when a WEEKLY "RRULE" has an interval
+        ##     greater than 1, and a BYDAY rule part is
+        ##     specified.  This is also significant when in a
+        ##     YEARLY "RRULE" when a BYWEEKNO rule part is
+        ##     specified.  The default value is MO.
+
+        if (INTERVAL > 1 && !is.null(BYDAY) && !is.null(WKST))
+            warning(RRULE.text, ": ",
+                    sQuote("WKST"), " is currently ignored")
+
+        if        ( is.null(BYSECOND)   &&
+                    is.null(BYMINUTE)   &&
+                    is.null(BYHOUR)     &&
+                   !is.null(BYDAY)      &&
+                    is.null(BYMONTHDAY) &&
+                    is.null(BYYEARDAY)  &&
+                    is.null(BYWEEKNO)   &&
+                    is.null(BYMONTH)    &&
+                    is.null(BYSETPOS) # &&
+                   #is.null(WKST)
                    ) {
+
 
             if (DTSTART.isdate) {
                 if (is.null(COUNT))
