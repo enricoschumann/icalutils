@@ -2,6 +2,14 @@
 .fold.re        <- "\n[ \t]"
 .fold.re.strict <- "\r\n[ \t]"
 
+.unquote <- function(s) {
+    s[startsWith(s, "\"")] <- substr(s[startsWith(s, "\"")], 2L,
+                                     nchar(s[startsWith(s, "\"")]))
+    s[endsWith(s, "\"")]   <- substr(s[endsWith(s, "\"")], 1L,
+                                     nchar(s[endsWith(s, "\"")]) - 1L)
+    s
+}
+
 .wday <- c(
     "SU" = 0,
     "MO" = 1,
@@ -13,7 +21,7 @@
 
 .fold <- function(s) {
     i <- nchar(s) > 75
-
+    ## TODO
 }
 
 .unfold <- function(s, strict.eol) {
@@ -61,9 +69,9 @@ function(file,
 
     ## TODO: text operations -- remove \, etc?
     cal <- .properties(cal.txt)
-    if (keep.source)
-        for (i in seq_along(cal))
-            attr(cal[[i]], "source") <- cal.txt[i]
+    ## if (keep.source)
+    ##     for (i in seq_along(cal))
+    ##         attr(cal[[i]], "source") <- cal.txt[i]
     cal <- .expand_properties(cal, tz.names = tz.names)
 
 
@@ -88,11 +96,25 @@ function(file,
 }
 
 print.icalendar <-
-function(x, ...) {
+function(x, ..., max = NULL) {
+
+    if (is.null(max)) 
+        max <- getOption("max.print", 99999L)
 
     len <- length(x)
-    cat("An icalendar file with", len, "components.\n")
+    cat("An icalendar file with ", len,
+        if (len == 1L) " component" else " components",
+        ".\n", sep = "")
+    if (len == 0L)
+        cat("  [Not a valid iCalendar: at least one component is required.]\n")
     invisible(x)
+}
+
+`[.icalendar` <-
+function(x, i, ...) {
+    ans <- unclass(x)[i]
+    class(ans) <- "icalendar"
+    ans
 }
 
 as.data.frame.icalendar <-
@@ -109,7 +131,7 @@ function(x,
          timestamps.tz = "",
          components = c("VEVENT", "VTODO"),
          ...) {
-
+    browser()
     x <- x[unname(unlist(lapply(x, "class"))) %in% tolower(components)]
 
     res.df <- data.frame()
@@ -726,29 +748,80 @@ function(DTSTART, DTEND,
 
 }
 
-.properties <- function(s, ...) {
+## .properties <- function(s, keep.source = TRUE, ...) {
 
-    ## receives a character vector
-    ## (*unfolded* content lines of iCalendar stream),
-    ## and returns named list (names = properties).
-    ## Attached (as attributes)
-    ## to these properties may be "parameters" as
-    ## specified by [RFC5545:3.2.]. The property values
-    ## are all character.
+##     ## receives a character vector
+##     ## (*unfolded* content lines of iCalendar stream),
+##     ## and returns named list (names = properties).
+##     ## Attached (as attributes)
+##     ## to these properties may be "parameters" as
+##     ## specified by [RFC5545:3.2.]. The property values
+##     ## are all character.
 
-    p <- "^([^:;]+?)[:;](.*)"
-    ans <- gsub(p, "\\2", s, perl = TRUE)
-    names(ans) <- gsub(p, "\\1", s, perl = TRUE)
-    ans <- as.list(ans)
+##     p <- "^([^:;]+?)[:;](.*)"
+##     ans <- gsub(p, "\\2", s, perl = TRUE)
+##     names(ans) <- gsub(p, "\\1", s, perl = TRUE)
+##     ans <- as.list(ans)
 
+##     ## check for property parameters [RFC5545:3.2.]
+##     param <- grep("[^:]+;.*:", s)
+##     for (i in seq_along(param)) {
+##         attr(ans[[ param[i] ]], "parameters") <-
+##             sub("(.*?):(.*)", "\\1", ans[[ param[i] ]])
+##         ans[[ param[i] ]] <-
+##             sub("(.*?):(.*)", "\\2", ans[[ param[i] ]])
+##     }
+##     ans
+## }
+
+.properties <- function(s, keep.source = TRUE, ...) {
+
+    ## receives a character vector (*unfolded* content
+    ## lines of iCalendar stream), and returns named
+    ## list (names = properties).  Attached (as
+    ## attributes) to these properties may be
+    ## "parameters" as specified by [RFC5545:3.2.]. The
+    ## property and parameter values are all character.
+
+    ## if keep.source is TRUE, 
+    
     ## check for property parameters [RFC5545:3.2.]
-    param <- grep("[^:]+;.*:", s)
-    for (i in seq_along(param)) {
-        attr(ans[[ param[i] ]], "parameters") <-
-            sub("(.*?):(.*)", "\\1", ans[[ param[i] ]])
-        ans[[ param[i] ]] <-
-            sub("(.*?):(.*)", "\\2", ans[[ param[i] ]])
+    has.param <- grepl("^[^;][^;]*;", s, perl = TRUE)
+
+    ans <- vector("list", length(s))
+
+    p <- "^([^:;]+?)[:;].*"
+    names(ans) <- gsub(p, "\\1", s, perl = TRUE)
+
+    ## property values -- if there are NO PARAMETERS    
+    p <- "^[^:]+?:(.*)"
+    ans[!has.param] <- gsub(p, "\\1", s[!has.param], perl = TRUE)
+    
+
+    ## property values -- if THERE ARE PARAMETERS
+    ## ==> look for pattern ;<param-name>=<param-value>
+    has.param <- which(has.param)
+    m <- gregexpr(";[^=]+=\"[^\"]+?\"(?=[;:])|;[^=]+=[^\"]+?(?=[;:])",
+                  s[has.param], perl = TRUE)
+    rm <- regmatches(s[has.param], m)
+
+    for (i in seq_along(has.param)) {
+        ans[[ has.param[i] ]] <-
+            substr(s[ has.param[i] ],
+                   1L +
+                   m[[ i ]][1L] + sum(attr(m[[ i ]], "match.length")),
+                   nchar( s[has.param[i] ]))
+        params <- strsplit(rm[[i]], "=", fixed = TRUE)
+        for (j in seq_along(params)) {
+            attr(ans[[ has.param[i] ]],
+                 substr(params[[j]][1L], 2L, nchar(params[[j]][1L]))) <- 
+                paste(.unquote(params[[j]][-1L]), collapse = "=")
+        }
     }
+
+    if (keep.source)
+        for (i in seq_along(s))
+            attr(ans[[i]], "source") <- s[i]
     ans
 }
 
@@ -790,7 +863,7 @@ function(DTSTART, DTEND,
         } else
             i.utc <- NULL
 
-        i <- !done & is.dt & grepl("VALUE=DATE", param, ignore.case = TRUE)
+        i <- !done & is.dt & sapply(p, attr, "VALUE") == "DATE"
         if (any(i)) {
             i.date <- which(i)
             v.date <- as.Date(txt[i], format = "%Y%m%d")
@@ -798,12 +871,12 @@ function(DTSTART, DTEND,
         } else
             i.date <- NULL
 
-        i <- !done & is.dt & grepl("TZID", param, ignore.case = TRUE)
+        i <- !done & is.dt & as.character(sapply(p, attr, "TZID")) != "NULL"
         if (any(i)) {
             i.tz <- which(i)
             v.tz <- vector("list", length = length(i.tz)) ## a list to preserve  tz
 
-            tz <- sub('TZID="?([^;"]+)"?', "\\1", param[i])
+            tz <- sapply(p[i], attr, "TZID")
 
             for (j in seq_along(i.tz)) {
 
@@ -830,7 +903,7 @@ function(DTSTART, DTEND,
         } else
             i.tz <- NULL
 
-        i <- !done & is.dt & grepl("^[0-9]{8}T[0-9]{6}$", param)
+        i <- !done & is.dt & grepl("^[0-9]{8}T[0-9]{6}$", txt)
         if (any(i)) {
             i.localtime <- which(i)
             v.localtime <- .local_dt(txt[i])
@@ -849,9 +922,9 @@ function(DTSTART, DTEND,
                         v.localtime[j == i.localtime]
                     else if (j %in% i.tz)
                         v.tz[[which(j == i.tz)]]
-        attr(ans[[j]], "source") <- attr(p[[j]], "source")
-        if (param[j] != "")
-            attr(ans[[j]], "parameters") <- attr(p[[j]], "parameters")
+        if (!is.null(attributes(p[[j]])))                ## FIXME: necessary? 
+            attributes(ans[[j]]) <- c(attributes(ans[[j]]),
+                                      attributes(  p[[j]]))   ## tz etc. now in R data
     }
 
 
@@ -860,9 +933,8 @@ function(DTSTART, DTEND,
     i <- which(nm %in% "RRULE")
     for (j in i) {
         ans[[j]] <- .parse_rrule(ans[[j]])[[1]]
-        attr(ans[[j]], "source") <- attr(p[[j]], "source")
-        if (param[j] != "")
-            attr(ans[[j]], "parameters") <- attr(p[[j]], "parameters")
+        if (!is.null(attributes(p[[j]])))                ## FIXME: necessary? 
+            attributes(ans[[j]]) <- attributes(p[[j]])   ## tz etc. now in R data
     }
     ans
 }
