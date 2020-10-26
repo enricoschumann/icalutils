@@ -98,7 +98,7 @@ function(file,
 print.icalendar <-
 function(x, ..., max = NULL) {
 
-    if (is.null(max)) 
+    if (is.null(max))
         max <- getOption("max.print", 99999L)
 
     len <- length(x)
@@ -131,7 +131,7 @@ function(x,
          timestamps.tz = "",
          components = c("VEVENT", "VTODO"),
          ...) {
-    browser()
+
     x <- x[unname(unlist(lapply(x, "class"))) %in% tolower(components)]
 
     res.df <- data.frame()
@@ -783,8 +783,8 @@ function(DTSTART, DTEND,
     ## "parameters" as specified by [RFC5545:3.2.]. The
     ## property and parameter values are all character.
 
-    ## if keep.source is TRUE, 
-    
+    ## if keep.source is TRUE,
+
     ## check for property parameters [RFC5545:3.2.]
     has.param <- grepl("^[^;][^;]*;", s, perl = TRUE)
 
@@ -793,10 +793,10 @@ function(DTSTART, DTEND,
     p <- "^([^:;]+?)[:;].*"
     names(ans) <- gsub(p, "\\1", s, perl = TRUE)
 
-    ## property values -- if there are NO PARAMETERS    
+    ## property values -- if there are NO PARAMETERS
     p <- "^[^:]+?:(.*)"
     ans[!has.param] <- gsub(p, "\\1", s[!has.param], perl = TRUE)
-    
+
 
     ## property values -- if THERE ARE PARAMETERS
     ## ==> look for pattern ;<param-name>=<param-value>
@@ -814,7 +814,7 @@ function(DTSTART, DTEND,
         params <- strsplit(rm[[i]], "=", fixed = TRUE)
         for (j in seq_along(params)) {
             attr(ans[[ has.param[i] ]],
-                 substr(params[[j]][1L], 2L, nchar(params[[j]][1L]))) <- 
+                 substr(params[[j]][1L], 2L, nchar(params[[j]][1L]))) <-
                 paste(.unquote(params[[j]][-1L]), collapse = "=")
         }
     }
@@ -922,7 +922,7 @@ function(DTSTART, DTEND,
                         v.localtime[j == i.localtime]
                     else if (j %in% i.tz)
                         v.tz[[which(j == i.tz)]]
-        if (!is.null(attributes(p[[j]])))                ## FIXME: necessary? 
+        if (!is.null(attributes(p[[j]])))                ## FIXME: necessary?
             attributes(ans[[j]]) <- c(attributes(ans[[j]]),
                                       attributes(  p[[j]]))   ## tz etc. now in R data
     }
@@ -933,7 +933,7 @@ function(DTSTART, DTEND,
     i <- which(nm %in% "RRULE")
     for (j in i) {
         ans[[j]] <- .parse_rrule(ans[[j]])[[1]]
-        if (!is.null(attributes(p[[j]])))                ## FIXME: necessary? 
+        if (!is.null(attributes(p[[j]])))                ## FIXME: necessary?
             attributes(ans[[j]]) <- attributes(p[[j]])   ## tz etc. now in R data
     }
     ans
