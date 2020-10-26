@@ -1,3 +1,7 @@
+2020-10-26  Enrico Schumann  <es@enricoschumann.net>
+
+	* R/RRULE.R: add draft of new RRULE
+
 2020-06-23  Enrico Schumann  <es@enricoschumann.net>
 
 	* R/functions.R (.next_weekday): rewrite function

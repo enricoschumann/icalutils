@@ -2,12 +2,13 @@ Package: icalutils
 Type: Package
 Title: Read, Process and Create iCalendar Data and Files
 Version: 0.2-0
-Date: 2020-06-22
+Date: 2020-10-31
 Authors@R: c(person("Enrico", "Schumann",
                     role  = c("aut", "cre"),
                     email = "es@enricoschumann.net",
                     comment = c(ORCID = "0000-0001-7601-6576")),
-             person("Unicode, Inc.", role = c("dtc", "cph")))
+             person("Unicode, Inc.", role = c("dtc", "cph"),
+                    comment = "source of timezone names in 'tznames'"))
 Maintainer: Enrico Schumann <es@enricoschumann.net>
 Description: Utilities for handling iCalendar data, in particular
   reading and creating/writing iCalendar files.  The package is

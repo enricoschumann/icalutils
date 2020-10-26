@@ -3,6 +3,7 @@ export(
     "vevent",
     "to_vevent",
     "rrule",
+    "RRULE",
     "save_attachments")
 
 importFrom("stats", "runif")
