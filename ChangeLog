@@ -1,6 +1,19 @@
+2020-10-29  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/functions.R (.properties): make the
+        function more careful with quoted property
+        parameters
+        (`[.icalendar`): add simple method
+
+2020-10-12  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/functions.R (.unquote): add function
+        (.properties): rewrite function; support quoted
+        parameter values
+
 2020-06-23  Enrico Schumann  <es@enricoschumann.net>
 
-	* R/functions.R (.next_weekday): rewrite function
+        * R/functions.R (.next_weekday): rewrite function
 
 2020-06-21  Enrico Schumann  <es@enricoschumann.net>
 
