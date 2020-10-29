@@ -68,10 +68,7 @@ function(file,
 
 
     ## TODO: text operations -- remove \, etc?
-    cal <- .properties(cal.txt)
-    ## if (keep.source)
-    ##     for (i in seq_along(cal))
-    ##         attr(cal[[i]], "source") <- cal.txt[i]
+    cal <- .properties(cal.txt, keep.source = keep.source)
     cal <- .expand_properties(cal, tz.names = tz.names)
 
 
@@ -779,7 +776,6 @@ function(DTSTART, DTEND,
     ## "parameters" as specified by [RFC5545:3.2.]. The
     ## property and parameter values are all character.
 
-    ## if keep.source is TRUE,
 
     ## check for property parameters [RFC5545:3.2.]
     no.param <- grepl("^[a-zA-Z0-9-][a-zA-Z0-9-]*?:", s, perl = TRUE)
