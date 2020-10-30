@@ -68,10 +68,7 @@ function(file,
 
 
     ## TODO: text operations -- remove \, etc?
-    cal <- .properties(cal.txt)
-    ## if (keep.source)
-    ##     for (i in seq_along(cal))
-    ##         attr(cal[[i]], "source") <- cal.txt[i]
+    cal <- .properties(cal.txt, keep.source = keep.source)
     cal <- .expand_properties(cal, tz.names = tz.names)
 
 
@@ -347,7 +344,6 @@ function(x,
 function(DTSTART, DTEND,
          RRULE, RDATE, EXDATE,
          UNTIL = NULL, COUNT = NULL) {
-
     RRULE.text <- attr(RRULE, "RRULE")
     FREQ <- toupper(RRULE$FREQ)
     if (is.null(RRULE$INTERVAL))
@@ -414,7 +410,7 @@ function(DTSTART, DTEND,
         ##     YEARLY "RRULE" when a BYWEEKNO rule part is
         ##     specified.  The default value is MO.
 
-        if (!is.null(BYWEEKNO) && !is.null(WKST))
+        if (!is.null(BYWEEKNO) && !is.null(WKST) && WKST != "MO")
             warning(RRULE.text, ": ",
                     sQuote("WKST"), " is currently ignored")
 
@@ -528,8 +524,6 @@ function(DTSTART, DTEND,
         }
 
     } else if (FREQ == "MONTHLY") {
-        ## browser()
-
 
         if (##is.null(BYSECOND)   &&
             ##is.null(BYMINUTE)   &&
@@ -642,7 +636,7 @@ function(DTSTART, DTEND,
         ##     YEARLY "RRULE" when a BYWEEKNO rule part is
         ##     specified.  The default value is MO.
 
-        if (INTERVAL > 1 && !is.null(BYDAY) && !is.null(WKST))
+        if (INTERVAL > 1 && !is.null(BYDAY) && !is.null(WKST) && WKST != "MO")
             warning(RRULE.text, ": ",
                     sQuote("WKST"), " is currently ignored")
 
@@ -783,10 +777,10 @@ function(DTSTART, DTEND,
     ## "parameters" as specified by [RFC5545:3.2.]. The
     ## property and parameter values are all character.
 
-    ## if keep.source is TRUE,
 
     ## check for property parameters [RFC5545:3.2.]
-    has.param <- grepl("^[^;][^;]*;", s, perl = TRUE)
+    no.param <- grepl("^[a-zA-Z0-9-][a-zA-Z0-9-]*?:", s, perl = TRUE)
+    has.param <- !no.param
 
     ans <- vector("list", length(s))
 
@@ -794,8 +788,8 @@ function(DTSTART, DTEND,
     names(ans) <- gsub(p, "\\1", s, perl = TRUE)
 
     ## property values -- if there are NO PARAMETERS
-    p <- "^[^:]+?:(.*)"
-    ans[!has.param] <- gsub(p, "\\1", s[!has.param], perl = TRUE)
+    p <- "^[^:][^:]*?:(.*)"
+    ans[no.param] <- gsub(p, "\\1", s[no.param], perl = TRUE)
 
 
     ## property values -- if THERE ARE PARAMETERS
