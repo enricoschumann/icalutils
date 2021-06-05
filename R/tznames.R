@@ -1,6 +1,6 @@
 ## The data in this file are auto-generated from file 'windowsZones.xml'
 ## in the Unicode Common Locale Data Repository (http://cldr.unicode.org/).
-## See also https://www.unicode.org/copyright.html and https://www.unicode.org/license.html.
+## See https://www.unicode.org/copyright.html and https://www.unicode.org/license.html.
 
 .tznames <- structure(list(Windows = c("Dateline Standard Time", 
     "UTC-11", "Aleutian Standard Time", 
@@ -12,6 +12,7 @@
     "US Mountain Standard Time", 
     "Mountain Standard Time (Mexico)", 
     "Mountain Standard Time", 
+    "Yukon Standard Time", 
     "Central America Standard Time", 
     "Central Standard Time", 
     "Easter Island Standard Time", 
@@ -61,6 +62,7 @@
     "South Africa Standard Time", 
     "FLE Standard Time", 
     "Israel Standard Time", 
+    "South Sudan Standard Time", 
     "Kaliningrad Standard Time", 
     "Sudan Standard Time", 
     "Libya Standard Time", 
@@ -145,6 +147,7 @@
         "America/Phoenix", 
         "America/Chihuahua", 
         "America/Denver", 
+        "America/Whitehorse", 
         "America/Guatemala", 
         "America/Chicago", 
         "Pacific/Easter", 
@@ -176,7 +179,7 @@
         "Etc/GMT+2", 
         "Atlantic/Azores", 
         "Atlantic/Cape_Verde", 
-        "Etc/GMT", "Europe/London", 
+        "Etc/UTC", "Europe/London", 
         "Atlantic/Reykjavik", 
         "Africa/Sao_Tome", 
         "Africa/Casablanca", 
@@ -195,6 +198,7 @@
         "Africa/Johannesburg", 
         "Europe/Kiev", 
         "Asia/Jerusalem", 
+        "Africa/Juba", 
         "Europe/Kaliningrad", 
         "Africa/Khartoum", 
         "Africa/Tripoli", 
@@ -270,4 +274,4 @@
         "Pacific/Kiritimati")), 
     class = "data.frame", 
     row.names = c(NA, 
-        -137L))
+        -139L))
