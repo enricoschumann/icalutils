@@ -81,6 +81,7 @@ function(file,
             ans.i <- cal[seq(begin[i] + 1L, end[i] - 1L)]
             class(ans.i) <- tolower(C)
             ans <- c(ans, list(ans.i))
+            ## TODO check for repeated names?
         }
     }
     if (uid.names)
