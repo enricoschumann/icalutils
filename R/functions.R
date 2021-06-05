@@ -1,12 +1,12 @@
-.eol.strict     <- "\r\n"
-.fold.re        <- "\n[ \t]"
+.eol.strict <-     "\r\n"
+.fold.re <-        "\n[ \t]"
 .fold.re.strict <- "\r\n[ \t]"
 
 .unquote <- function(s) {
-    s[startsWith(s, "\"")] <- substr(s[startsWith(s, "\"")], 2L,
-                                     nchar(s[startsWith(s, "\"")]))
-    s[endsWith(s, "\"")]   <- substr(s[endsWith(s, "\"")], 1L,
-                                     nchar(s[endsWith(s, "\"")]) - 1L)
+    i <- startsWith(s, "\"")
+    s[i] <- substr(s[i], 2L, nchar(s[i]))
+    i <- endsWith(s, "\"")
+    s[i]   <- substr(s[i], 1L, nchar(s[i]) - 1L)
     s
 }
 
@@ -90,6 +90,11 @@ function(file,
     class(ans) <- c("icalendar")
     ans
 
+}
+
+print.vevent <- function(x, ...) {
+    cat(as.character(x$DTSTART), x$SUMMARY, "\n", sep = "")
+    invisible(x)
 }
 
 print.icalendar <-
@@ -524,7 +529,6 @@ function(DTSTART, DTEND,
         }
 
     } else if (FREQ == "MONTHLY") {
-
         if (##is.null(BYSECOND)   &&
             ##is.null(BYMINUTE)   &&
             ##is.null(BYHOUR)     &&
@@ -535,7 +539,6 @@ function(DTSTART, DTEND,
             ##is.null(BYMONTH)    &&
             ## is.null(BYSETPOS)   &&
             is.null(WKST)) {
-
             if (is.null(UNTIL) && !is.null(COUNT))
                 dates <- seq(as.POSIXct(as.character(DTSTART), tz = "UTC"),
                              by = "1 day",
@@ -545,6 +548,8 @@ function(DTSTART, DTEND,
                              as.POSIXct(as.character(UNTIL), tz = "UTC"),
                              by = "1 day")
 
+            if (is.null(BYMONTHDAY))
+                BYMONTHDAY <- as.POSIXlt(DTSTART)$mday
             if (!is.null(BYMONTHDAY))
                 dates <- dates[mday(dates) %in% BYMONTHDAY]
             if (!is.null(BYMONTH))
@@ -933,7 +938,8 @@ function(DTSTART, DTEND,
         if (!is.null(attributes(p[[j]]))) { ## FIXME: necessary?
             if (any(names(attributes(p[[j]])) %in% names(attributes(ans[[j]]))))
                 warning("attribute clash")
-            attributes(ans[[j]]) <- attributes(p[[j]])   ## tz etc. now in R data
+            attributes(ans[[j]]) <- c(attributes(ans[[j]]),
+                                      attributes(  p[[j]]))   ## tz etc. now in R data
         }
     }
     ans

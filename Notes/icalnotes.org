@@ -1,0 +1,23 @@
+#+TITLE: iCalendar
+
+
+* RECUR
+
+| component  | list? | default | possible values                                            | note      |
+|------------+-------+---------+------------------------------------------------------------+-----------|
+| FREQ       |       |         | SECONDLY, MINUTELY, HOURLY, DAILY, WEEKLY, MONTHLY, YEARLY |           |
+| INTERVAL   |       | 1       | an integer >= 1                                            |           |
+| COUNT      |       |         |                                                            |           |
+| UNTIL      |       |         | same type as DTSTART; inclusive                            |           |
+| BYSECOND   | list  |         | 0..60                                                      |           |
+| BYMINUTE   | list  |         | 0..59                                                      |           |
+| BYHOUR     | list  |         | 0..23                                                      |           |
+| BYDAY      | list  |         | MO..SU or prefixed [+-]nMO..[+-]nSU (n = non-zero integer) | BYWEEKDAY |
+| BYMONTHDAY | list  |         | 1..31, -1..-31                                             |           |
+| BYYEARDAY  | list  |         | 1..366, -1..-366                                           |           |
+| BYWEEKNO   | list  |         | 1..53, -1..-53                                             |           |
+| BYMONTH    | list  |         | 1..12                                                      |           |
+|------------+-------+---------+------------------------------------------------------------+-----------|
+| BYSETPOS   | list  |         | 1..366, -1..-366                                           |           |
+|------------+-------+---------+------------------------------------------------------------+-----------|
+| WKST       |       | MO      | MO..SU                                                     |           |
