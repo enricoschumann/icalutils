@@ -14,7 +14,7 @@ function(DTSTART,
          BYWEEKNO = NULL,
          BYMONTH = NULL,
          BYSETPOS = NULL,
-         WKST = NULL,
+         WKST = "MO",
          RDATE = NULL,
          EXDATE = NULL,
          RRULE = NULL,
@@ -32,6 +32,9 @@ function(DTSTART,
     ## BYSETPOS; then COUNT and UNTIL are evaluated.
 
     if (!is.null(source)) {
+        source <- toupper(source)
+        if (grepl("^RRULE:", source))
+            source <- sub("^RRULE:", "", source)
         RRULE <- icalutils:::.parse_rrule(source)[[1]]
     }
     if (!is.null(RRULE)) {
@@ -58,11 +61,26 @@ function(DTSTART,
     if (is.null(WKST))
         WKST <- "MO"
 
-    datetime <- if (inherits(DTSTART, "Date"))
-                    FALSE else TRUE
+    datetime <- !inherits(DTSTART, "Date")
 
-    if (is.null(UNTIL))
-        UNTIL <- Sys.Date()+3600
+    if (is.null(UNTIL)) {
+        if (datetime) {
+            UNTIL <- end_of_year(Sys.Date(), 10)
+            x <- paste(year(UNTIL),
+                       month(UNTIL),
+                       mday(UNTIL),
+                       hour(UNTIL),
+                       minute(UNTIL),
+                       round(second(UNTIL)),
+                       sep = "-")
+            UNTIL <- as.POSIXct(strptime(x, "%Y-%m-%d-%H-%M-%S",
+                                         tz = ""), 
+                                tz = "")            
+        } else
+            UNTIL <- Sys.Date() +
+                (as.POSIXct(end_of_year(Sys.Date(), 10)) + 86400)
+    }
+
 
     ## FIXME if COUNT is specified, compute
     ## guess for UNTIL from COUNT
@@ -296,10 +314,21 @@ function(DTSTART,
             BYMONTHDAY <- tmp$mday
 
         }
+        if (datetime) {
+            rset <- seq(as.Date(DTSTART),
+                        as.Date(UNTIL),
+                        by = "1 day")
+            rset <- ISOdatetime(year(rset),
+                                month(rset),
+                                mday(rset),
+                                hour(DTSTART),
+                                minute(DTSTART),
+                                second(DTSTART))
 
-        rset <- seq(first_of_year(DTSTART),
-                    end_of_year(UNTIL),
-                    by = "1 day")
+        } else {
+            rset <- seq(DTSTART, UNTIL, by = "1 day")
+        }
+        
         if (INTERVAL > 1L) {
             rset <- rset[.year(rset) %in%
                          seq(.year(DTSTART), .year(UNTIL), by = INTERVAL)]

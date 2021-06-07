@@ -281,8 +281,9 @@ function(x,
 
 .parse_rrule <- function(RRULE, ...) {
 
-    ## takes a vector of one or more rrules (character) and
-    ## returns a list of lists
+    ## takes a vector of one or more rrules (character)
+    ## and returns a list of lists. Note that the
+    ## rrules must not start with "RRULE:" anymore.
 
     rules <- strsplit(RRULE, ";", fixed = TRUE)
     rules <- lapply(rules, strsplit, "=", fixed = TRUE)

@@ -7,7 +7,7 @@
 
 2020-10-26  Enrico Schumann  <es@enricoschumann.net>
 
-	* R/RRULE.R: add draft of new RRULE
+        * R/RRULE.R: add draft of new RRULE
 
 2020-10-12  Enrico Schumann  <es@enricoschumann.net>
 
