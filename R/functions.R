@@ -233,8 +233,9 @@ function(x,
 }
 
 
-.weekday <- function(dates)
-    unclass(dates + 4) %% 7
+.weekday <- function(x)
+    ## maps Date to a number (0 Sunday .. 6 Saturday)
+    unclass(x + 4) %% 7
 
 .weekdayS <- function(dates)
         c("SU",
@@ -1004,70 +1005,6 @@ month <- function(x)
 mday <- function(x)
     as.POSIXlt(x)$mday
 
-rrule <-
-function(dtstart,
-         dtend = NULL,
-         freq,
-         until = NULL,
-         count = NULL,
-         interval = 1,
-         bysecond = NULL,
-         byminute = NULL,
-         byhour = NULL,
-         byday = NULL,
-         bymonthday = NULL,
-         byyearday = NULL,
-         byweekno = NULL,
-         bymonth = NULL,
-         bysetpos = NULL,
-         wkst = NULL,
-         rdate = NULL,
-         exdate = NULL,
-         text = NULL) {
-
-    if (!is.null(count) && !is.null(until))
-        stop("specify either ", sQuote("count"),
-             " or ", sQuote("until"), ", but not both")
-    if (!is.null(text)) {
-        text <- sub("^RRULE:", "", text, ignore.case = TRUE)
-        rrule <- .parse_rrule(text)[[1L]]
-    } else {
-        rrule <- list(
-            FREQ        = freq,
-            UNTIL       = until,
-            COUNT       = if (!is.null(count)) as.numeric(count),
-            INTERVAL    = as.numeric(interval),
-            BYSECOND    = bysecond,
-            BYMINUTE    = byminute,
-            BYHOUR      = byhour,
-            BYDAY       = byday,
-            BYMONTHDAY  = bymonthday,
-            BYYEARDAY   = byyearday,
-            BYWEEKNO    = byweekno,
-            BYMONTH     = bymonth,
-            BYSETPOS    = bysetpos,
-            WKST        = wkst
-        )
-    }
-
-    ans <- list()
-    ans$text <- if (!is.null(text))
-                    text
-                else {
-                    rrule1 <- rrule[!unlist(lapply(rrule, is.null))]
-                    paste0(paste0(names(rrule1), "=", toupper(rrule1)), collapse = ";")
-                }
-
-    ans$recurrence_set <-
-        .expand_rrule(DTSTART = dtstart,
-                      DTEND   = dtend,
-                      RRULE   = .parse_rrule(ans$text)[[1L]],
-                      RDATE   = rdate,
-                      EXDATE  = exdate,
-                      UNTIL   = until,
-                      COUNT   = count)
-    ans
-}
 
 ## TODO no default => .default must raise error
 to_vevent <- function(x, ...)
