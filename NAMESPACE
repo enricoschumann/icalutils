@@ -11,4 +11,5 @@ importFrom("utils", "packageVersion")
 
 S3method("as.data.frame", "icalendar")
 S3method("print", "icalendar")
+S3method("print", "vevent")
 S3method(`[`, "icalendar")

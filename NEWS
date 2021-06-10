@@ -1,5 +1,10 @@
 v0.2-0  (2021-10-31; not yet released)
 
+  o there are now subsetting and print methods for
+    "icalendar" and "vevent" objects
+
+  o more rrules are supported
+
   o ....
 
 v0.1-0  (2019-10-31)

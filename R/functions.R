@@ -94,7 +94,18 @@ function(file,
 }
 
 print.vevent <- function(x, ...) {
-    cat(as.character(x$DTSTART), x$SUMMARY, "\n", sep = "")
+    time <- as.character(x$DTSTART)
+    all.day <- inherits(x$DTSTART, "Date")
+    if (!is.null(x$DTEND)) {
+        if (all.day && x$DTEND > x$DTSTART + 1)
+            time <- paste0(time, " -- ", x$DTEND - 1L)
+        if (!all.day && as.Date(x$DTSTART) == as.Date(x$DTEND))
+            time <- paste0(time, " -- ", format(x$DTEND, "%H:%M:%S"))
+    }
+    if (!is.null(x$RRULE)) {
+        time <- paste(time, "(recurring)")
+    }
+    cat(time, "  ", x$SUMMARY, "\n", sep = "")
     invisible(x)
 }
 
@@ -256,28 +267,6 @@ function(x,
     ans <- sort(ans) + start
     ans[seq_len(count)]
 }
-
-.is_ical_date <- function(s, ...)
-    grepl("^[0-9]{8}$", s)
-
-.date <- function(s, ...)
-    as.Date(s, "%Y%m%d")
-
-.utc_dt <- function(s, ...) {
-    ## trailing Z does not have to be removed
-    as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
-}
-
-.local_dt <- function(s) {
-    ans <- as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
-    attr(ans, "localtime") <- TRUE
-    ans
-}
-
-## format time into character representation of UTC time
-## (basic format 8601: YmdHMSZ)
-.z <- function(t)
-    strftime(t, format = "%Y%m%dT%H%M%SZ", tz = "UTC")
 
 .parse_rrule <- function(RRULE, ...) {
 
@@ -780,7 +769,7 @@ function(DTSTART, DTEND,
 
     ## receives a character vector (*unfolded* content
     ## lines of iCalendar stream), and returns named
-    ## list (names = properties).  Attached (as
+    ## list (names = "properties").  Attached (as
     ## attributes) to these properties may be
     ## "parameters" as specified by [RFC5545:3.2.]. The
     ## property and parameter values are all character.
@@ -827,7 +816,9 @@ function(DTSTART, DTEND,
     ans
 }
 
-.expand_properties <- function(p, tz.names = character(0)) {
+.expand_properties <- function(p, tz.names = character(0),
+                               localtime.chron = FALSE,
+                               copy.attributes = TRUE) {
 
     ## receives a named list (names = properties) with
     ## character entries, and returns a list. The values
@@ -836,16 +827,17 @@ function(DTSTART, DTEND,
 
     ans <- p
     txt <- unlist(p)  ## all character, so unlist is safe
-    param <- unlist(lapply(ans, function(x)
-        if (!is.null(A <- attr(x, "parameters")))
-            A else ""))
+
+    ## param <- unlist(lapply(ans, function(x)
+    ##     if (!is.null(A <- attr(x, "parameters")))
+    ##         A else ""))
 
     nm <- names(ans)
     done <- logical(length(ans))
+    processed <- logical(length(ans))
 
 
-
-    ## ----------- DATETIME FIELDS -----------
+    ## ----------- *SINGLE* DATETIME FIELDS -----------
     dtfields <- c("CREATED",
                   "LAST-MODIFIED",
                   "DTSTAMP",
@@ -854,97 +846,104 @@ function(DTSTART, DTEND,
                   "DUE",
                   "EXDATE",
                   "RDATE")
-    is.dt <- nm %in% dtfields
 
-    if (any(is.dt)) {
-        i <- !done & is.dt & endsWith(txt, "Z")
-        if (any(i)) {
-            i.utc <- which(i)
-            v.utc <- .utc_dt(txt[i])
-            done[i] <- TRUE
-        } else
-            i.utc <- NULL
+    prop <- nm %in% dtfields & !processed & !grepl(",", txt, fixed = TRUE)
 
-        i <- !done & is.dt & sapply(p, attr, "VALUE") == "DATE"
-        if (any(i)) {
-            i.date <- which(i)
-            v.date <- as.Date(txt[i], format = "%Y%m%d")
-            done[i] <- TRUE
-        } else
-            i.date <- NULL
+    if (any(prop)) {
 
-        i <- !done & is.dt & as.character(sapply(p, attr, "TZID")) != "NULL"
+        i <- prop & !processed & endsWith(txt, "Z")
         if (any(i)) {
-            i.tz <- which(i)
-            v.tz <- vector("list", length = length(i.tz)) ## a list to preserve  tz
+            ans[i] <- as.list(.utc_dt(txt[i]))
+            processed[i] <- TRUE
+        }
+
+        i <- prop & !processed & sapply(p, attr, "VALUE") == "DATE"
+        if (any(i)) {
+            ans[i] <- as.list(as.Date(txt[i], format = "%Y%m%d"))
+            processed[i] <- TRUE
+        }
+
+        i <- prop & !processed & as.character(sapply(p, attr, "TZID")) != "NULL"
+        if (any(i)) {
 
             tz <- sapply(p[i], attr, "TZID")
+            uniq.tz <- unique(tz)
 
-            for (j in seq_along(i.tz)) {
+            for (j in seq_along(uniq.tz)) {
 
-                if (!tz[j] %in% tz.names)
-                    if (tz1 <- match(tz[j], .tznames$Windows, nomatch = 0)) {
-                        ## TODO collect such messages
-                        ## message("map timezone  ",
-                        ##         .tznames[["Windows"]][tz1], " => ",
-                        ##         .tznames[["Olson"]][tz1])
+                if (!uniq.tz[j] %in% tz.names)
+                    if (tz1 <- match(uniq.tz[j], .tznames$Windows, nomatch = 0)) {
+                        message("map timezone  ",
+                                .tznames[["Windows"]][tz1], " => ",
+                                .tznames[["Olson"]][tz1])
                         tz1 <- .tznames[["Olson"]][tz1]
                     } else {
-                        warning("Timezone not found: ", tz[j], ". Using current tz instead.")
+                        warning("Timezone not found: ", uniq.tz[j],
+                                ". Using current tz instead.")
                         tz1 <- ""
                     }
                 else
-                    tz1 <- tz[j]
+                    tz1 <- uniq.tz[j]
 
-                v.tz[[j]] <- as.POSIXct(ans[[i.tz[j]]],
-                                        format = "%Y%m%dT%H%M%S",
-                                        tz = tz1)
+                ij <- which(i)[tz == uniq.tz[j]]
+                ans[ij] <- as.list(as.POSIXct(txt[ij], tz = tz1,
+                                              format = "%Y%m%dT%H%M%S"))
             }
+            processed[i] <- TRUE
+        }
 
-            done[i] <- TRUE
-        } else
-            i.tz <- NULL
-
-        i <- !done & is.dt & grepl("^[0-9]{8}T[0-9]{6}$", txt)
+        i <- prop & !processed & grepl("^[0-9]{8}T[0-9]{6}$", txt)
         if (any(i)) {
-            i.localtime <- which(i)
-            v.localtime <- .local_dt(txt[i])
-            done[i] <- TRUE
-        } else
-            i.localtime <- NULL
+            if (localtime.chron && requireNamespace("chron")) {
+                ans[i] <- as.list(chron(substr(txt[i], 1, 8),
+                                        substr(txt[i], 10, 15),
+                                        format = c(dates = "ymd", time = "hms")))
+            } else {
+                ans[i] <- as.list(as.POSIXct(txt[i], tz = "",
+                                             format = "%Y%m%dT%H%M%S"))
+            }
+            processed[i] <- TRUE
 
+        }
     }
 
-    for (j in c(i.utc, i.date, i.tz, i.localtime)) {
-        ans[[j]] <- if (j %in% i.utc)
-                        v.utc[j == i.utc]
-                    else if (j %in% i.date)
-                        v.date[j == i.date]
-                    else if (j %in% i.localtime)
-                        v.localtime[j == i.localtime]
-                    else if (j %in% i.tz)
-                        v.tz[[which(j == i.tz)]]
-        if (!is.null(attributes(p[[j]]))) {  ## FIXME: necessary?
-            if (any(names(attributes(p[[j]])) %in% names(attributes(ans[[j]]))))
-                warning("attribute clash")
-            attributes(ans[[j]]) <- c(attributes(ans[[j]]),
-                                      attributes(  p[[j]]))   ## tz etc. now in R data
-        }
+
+
+    ## ----------- *MULTI-VALUE* DATETIME FIELDS -----------
+    dtfields <- c("EXDATE",
+                  "RDATE")
+
+    prop <- nm %in% dtfields & !processed &  grepl(",", txt, fixed = TRUE)
+
+    if (any(prop)) {
+        message("multi-value datetime fields not yet implemented")
     }
 
 
 
     ## ----------- RRULE -----------
-    i <- which(nm %in% "RRULE")
-    for (j in i) {
+    i <- !processed & nm %in% "RRULE"
+    for (j in which(i)) {
         ans[[j]] <- .parse_rrule(ans[[j]])[[1]]
-        if (!is.null(attributes(p[[j]]))) { ## FIXME: necessary?
-            if (any(names(attributes(p[[j]])) %in% names(attributes(ans[[j]]))))
-                warning("attribute clash")
-            attributes(ans[[j]]) <- c(attributes(ans[[j]]),
-                                      attributes(  p[[j]]))   ## tz etc. now in R data
+    }
+    processed[i] <- TRUE
+
+
+
+    ## copy attributes
+    if (copy.attributes) {
+        for (i in which(processed)) {
+            if (!is.null(attributes(p[[i]]))) {
+                ## must be icalendar attributes,
+                ## because "p" is a list of strings
+                if (any(names(attributes(p[[i]])) %in% names(attributes(ans[[i]]))))
+                    warning("attribute clash in property ", i)
+                attributes(ans[[i]]) <- c(attributes(ans[[i]]),
+                                          attributes(  p[[i]]))  ## tz etc. now in R data
+            }
         }
     }
+
     ans
 }
 
@@ -1119,3 +1118,43 @@ save_attachments <- function(file, out.dir,
     } else
         invisible(NULL)
 }
+
+.parse_datetime <- function(dt, local.chron = FALSE, ...) {
+    done <- logical(length(dt))
+    ans <- vector("list", length(dt))
+
+    ## UTC
+    i <- !done & endsWith(dt, "Z")
+    if (any(i)) {
+        tmp <- as.POSIXct(dt[i], format = "%Y%m%dT%H%M%S", tz = "UTC")
+        ans[i] <- as.list(tmp)
+        done[i] <- TRUE
+    }
+
+    ## local time
+    i <- !done & endsWith(dt, "Z")
+
+
+}
+
+.is_ical_date <- function(s, ...)
+    grepl("^[0-9]{8}$", s)
+
+.date <- function(s, ...)
+    as.Date(s, "%Y%m%d")
+
+.utc_dt <- function(s, ...) {
+    ## trailing Z does not have to be removed
+    as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
+}
+
+.local_dt <- function(s) {
+    ans <- as.POSIXct(s, format = "%Y%m%dT%H%M%S", tz = "UTC")
+    attr(ans, "localtime") <- TRUE
+    ans
+}
+
+## format time into character representation of UTC time
+## (basic format 8601: YmdHMSZ)
+.z <- function(t)
+    strftime(t, format = "%Y%m%dT%H%M%SZ", tz = "UTC")
