@@ -1,5 +1,5 @@
 RRULE <-
-function(DTSTART,
+function(DTSTART = NULL,
          DTEND = NULL,
          FREQ,
          UNTIL = NULL,
@@ -62,30 +62,61 @@ function(DTSTART,
         WKST <- "MO"
 
     datetime <- !inherits(DTSTART, "Date")
+    DTSTART.lt <- as.POSIXlt(DTSTART)
 
-    if (is.null(UNTIL)) {
-        if (datetime) {
-            UNTIL <- end_of_year(Sys.Date(), 10)
-            x <- paste(year(UNTIL),
-                       month(UNTIL),
-                       mday(UNTIL),
-                       hour(UNTIL),
-                       minute(UNTIL),
-                       round(second(UNTIL)),
-                       sep = "-")
-            UNTIL <- as.POSIXct(strptime(x, "%Y-%m-%d-%H-%M-%S",
-                                         tz = ""), 
-                                tz = "")            
-        } else
-            UNTIL <- Sys.Date() +
-                (as.POSIXct(end_of_year(Sys.Date(), 10)) + 86400)
-    }
 
 
     ## FIXME if COUNT is specified, compute
-    ## guess for UNTIL from COUNT
+    ##       guess for UNTIL from COUNT
+    if (is.null(UNTIL) && is.null(COUNT))
+        COUNT <- 5L
 
+    ## if (is.null(UNTIL)) {
+    ##     if (datetime) {
+    ##         UNTIL <- end_of_year(Sys.Date(), 10)
+    ##         x <- paste(year(UNTIL),
+    ##                    month(UNTIL),
+    ##                    mday(UNTIL),
+    ##                    hour(UNTIL),
+    ##                    minute(UNTIL),
+    ##                    round(second(UNTIL)),
+    ##                    sep = "-")
+    ##         UNTIL <- as.POSIXct(strptime(x, "%Y-%m-%d-%H-%M-%S",
+    ##                                      tz = ""),
+    ##                             tz = "")
+    ##     } else
+    ##         UNTIL <- Sys.Date() +
+    ##             (as.POSIXct(end_of_year(Sys.Date(), 10)) + 86400)
+    ## }
 
+    defined_only <- function(defined) {
+        if (identical(defined, ""))
+            defined <- character(0L)
+        var <- c("BYSECOND", "BYMINUTE", "BYHOUR",
+                 "BYDAY", "BYMONTHDAY", "BYYEARDAY",
+                 "BYWEEKNO", "BYMONTH", "BYSETPOS")
+        all.def <- TRUE
+        for (d in defined) {
+            if ( is.null(get(d,
+                             envir = parent.frame(1),
+                             inherits = FALSE))) {
+                all.def <- FALSE
+                break
+            }
+        }
+        all.null <- TRUE
+        for (v in setdiff(var, defined)) {
+            if (!is.null(get(v,
+                             envir = parent.frame(1),
+                             inherits = FALSE))) {
+                all.null <- FALSE
+                break
+            }
+        }
+        all.def && all.null &&
+            get("WKST", envir = parent.frame(1),
+                inherits = FALSE) == "MO"
+    }
     if (FREQ == "SECONDLY") {
 
     } else if (FREQ == "MINUTELY") {
@@ -287,108 +318,58 @@ function(DTSTART,
         rset <- rset[rset >= DTSTART & rset <= UNTIL]
 
 
+        ## #########################
     } else if (FREQ == "YEARLY") {
-        ## #############################
+        ## #########################
 
-        if (is.null(BYSECOND) &&
-            is.null(BYMINUTE) &&
-            is.null(BYHOUR) &&
-            is.null(BYDAY) &&
-            is.null(BYMONTHDAY) &&
-            is.null(BYYEARDAY) &&
-            is.null(BYWEEKNO) &&
-            is.null(BYMONTH) &&
-            is.null(BYSETPOS)) {
+        if (!is.null(BYYEARDAY)) {
+            message("YEARLY with BYYEARDAY not implemented yet")
 
-            tmp <- as.POSIXlt(DTSTART)
-            BYMONTH <- tmp$mon + 1
-            BYMONTHDAY <- tmp$mday
+        }  else if (!is.null(BYWEEKNO)) {
+            message("YEARLY with BYWEEKNO not implemented yet")
 
-        } else if (is.null(BYDAY) &&
-            is.null(BYMONTHDAY) &&
-            is.null(BYYEARDAY) &&
-            is.null(BYWEEKNO) &&
-            is.null(BYSETPOS)) {
-
-            tmp <- as.POSIXlt(DTSTART)
-            BYMONTHDAY <- tmp$mday
-
-        }
-        if (datetime) {
-            rset <- seq(as.Date(DTSTART),
-                        as.Date(UNTIL),
-                        by = "1 day")
-            rset <- ISOdatetime(year(rset),
-                                month(rset),
-                                mday(rset),
-                                hour(DTSTART),
-                                minute(DTSTART),
-                                second(DTSTART))
+        } else if (!is.null(BYSETPOS)) {
+            message("YEARLY with BYSETPOS not implemented yet")
 
         } else {
-            rset <- seq(DTSTART, UNTIL, by = "1 day")
+            if (is.null(BYMONTH))
+                BYMONTH <- DTSTART.lt$mon + 1
+            if (is.null(BYMONTHDAY))            
+                BYMONTHDAY <- DTSTART.lt$mday
+
+            if (datetime) {
+                if (is.null(BYSECOND))
+                    BYSECOND <- DTSTART.lt$sec
+                if (is.null(BYMINUTE))
+                    BYMINUTE <- DTSTART.lt$min
+                if (is.null(BYHOUR))
+                    BYHOUR   <- DTSTART.lt$hour
+            }
+
+            
         }
+        YEAR <- .year(DTSTART)
+        if (!is.null(UNTIL))
+            YEAR <- seq(YEAR, to = .year(UNTIL), by = INTERVAL)
+        else if (!is.null(COUNT))
+            YEAR <- seq(YEAR, length.out = COUNT, by = INTERVAL)
+        tmp <- .dt_comb(YEAR, BYMONTH, BYMONTHDAY, BYHOUR, BYMINUTE, BYSECOND,
+                        datetime = datetime)
+        if (datetime)
+            NULL
+        else
+            ans.DTSTART <- as.Date(do.call(paste, tmp), format = "%Y %m %d")
         
-        if (INTERVAL > 1L) {
-            rset <- rset[.year(rset) %in%
-                         seq(.year(DTSTART), .year(UNTIL), by = INTERVAL)]
-        }
-
-        if (!is.null(BYMONTH)) {
-            rset <- rset[.month(rset) %in% BYMONTH]
-        }
-        if (!is.null(BYWEEKNO)) {
-        }
-        if (!is.null(BYYEARDAY)) {
-        }
-        if (!is.null(BYMONTHDAY)) {
-            rset <- rset[mday(rset) %in% BYMONTHDAY]
-        }
-        if (!is.null(BYDAY)) {
-            num.wday <- .wday[BYDAY$wday]
-            rset <- rset[.weekday(rset) %in% num.wday]
-        }
-        if (datetime) {
-            if (!is.null(BYHOUR)) {
-            }
-            if (!is.null(BYMINUTE)) {
-            }
-            if (!is.null(BYSECOND)) {
-            }
-        }
-        if (!is.null(BYSETPOS)) {
-
-
-            rset <- unname(unlist(tapply(rset, format(rset, "%Y"),
-                   function(x) {
-
-                lenx <- length(x)
-                if (any(BYSETPOS < 0))  ## FIXME check for in positions outside length
-                    BYSETPOS[BYSETPOS < 0] <- lenx + BYSETPOS[BYSETPOS < 0] + 1
-                x[BYSETPOS]
-            })))
-            class(rset) <- class(DTSTART)
-
-        }
-        rset <- rset[rset >= DTSTART & rset <= UNTIL]
-
     }
+    ans <- list()
+    ans$text <- if (!is.null(source))
+                     source else ""
 
-    if (!is.null(COUNT)) {
-        if (length(rset) < COUNT) {
-            warning("fewer recurrences than COUNT")
-            COUNT <- length(rset)
-        }
-        rset <- rset[1:COUNT]
-    }
-
-    list(text = if (!is.null(source))
-                    source else {
-                               ""
-                               ## rrule1 <- rrule[!unlist(lapply(rrule, is.null))]
-                               ## paste0(paste0(names(rrule1), "=", toupper(rrule1)), collapse = ";")
-                           },
-         recurrence_set = data.frame(DTSTART = rset))
+    ans_rs <- data.frame(DTSTART = ans.DTSTART)
+    if (!is.null(DTEND))
+        ans_rs <- cbind(ans_rs, DTEND)
+    ans$recurrence_set <- ans_rs
+    ans
 
 }
 
@@ -456,4 +437,50 @@ function(dtstart,
                       UNTIL   = until,
                       COUNT   = count)
     ans
+}
+
+.dt_comb <- function(year, month, day, hour, minute, second, datetime = TRUE) {
+    if (datetime)
+        input <- list(year,
+                      month,
+                      day,
+                      hour,
+                      minute,
+                      second)
+    else
+        input <- list(year=year,
+                      month=month,
+                      day=day)
+
+
+    np <- length(input)
+    res <- vector("list", np)
+    rep.fac <- 1L
+    nl <- lengths(input)
+    nlp <- prod(nl)
+    for (i in seq_len(np)) {
+        x <- input[[i]]
+        nx <- length(x)
+        nlp <- nlp/nx
+        res[[i]] <- x[rep.int(rep.int(seq_len(nx),
+                                      rep.int(rep.fac, nx)), nlp)]
+        rep.fac <- rep.fac * nx
+    }
+    res <- list2DF(res)
+    names(res) <- names(input)
+    res
+
+}
+
+DTENDs <- function(DTSTART, DTEND, datetime = FALSE) {
+
+    if (datetime) {
+        d <- as.Date(DTEND[1]) - as.Date(DTSTART[1])
+        DTSTART + d
+        
+
+    } else {
+        d <- DTEND[1] - DTSTART[1]
+        DTSTART + d
+    }
 }
