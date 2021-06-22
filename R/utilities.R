@@ -1,4 +1,7 @@
-## code from package 'datetimeutils'
+## copied from datetimeutils https://github.com/enricoschumann/datetimeutils
+
+.mday <- function(x)
+    as.POSIXlt(x)$mday
 
 .year <- function(x)
     as.POSIXlt(x)$year + 1900
@@ -34,5 +37,38 @@
         .Date(7 * (unclass(x - offset) %/% 7) + offset)
     else
               7 * (unclass(x - offset) %/% 7) + offset
+}
+
+.weekday <- function(x)
+    ## maps Date to a number (0 Sunday .. 6 Saturday)
+    unclass(x + 4) %% 7
+
+.wday <- c(
+    "SU" = 0,
+    "MO" = 1,
+    "TU" = 2,
+    "WE" = 3,
+    "TH" = 4,
+    "FR" = 5,
+    "SA" = 6)
+
+.weekdayS <- function(dates)
+        c("SU",
+          "MO",
+          "TU",
+          "WE",
+          "TH",
+          "FR",
+          "SA")[unclass(dates + 4) %% 7 + 1]
+
+.next_weekday <- function(wday, start, count = 1, interval = 1) {
+    ## wday : 0 SU, 1 MO ... => target day
+    ## start: a date
+    if (count == 0)
+        return(numeric(0L))
+    ans <- (wday - .weekday(start)) %% 7 +
+        rep(7 * interval * seq(0, count - 1), each = length(wday))
+    ans <- sort(ans) + start
+    ans[seq_len(count)]
 }
 

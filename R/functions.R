@@ -10,15 +10,6 @@
     s
 }
 
-.wday <- c(
-    "SU" = 0,
-    "MO" = 1,
-    "TU" = 2,
-    "WE" = 3,
-    "TH" = 4,
-    "FR" = 5,
-    "SA" = 6)
-
 .fold <- function(s) {
     i <- nchar(s) > 75
     ## TODO
@@ -243,30 +234,6 @@ function(x,
     res.df
 }
 
-
-.weekday <- function(x)
-    ## maps Date to a number (0 Sunday .. 6 Saturday)
-    unclass(x + 4) %% 7
-
-.weekdayS <- function(dates)
-        c("SU",
-          "MO",
-          "TU",
-          "WE",
-          "TH",
-          "FR",
-          "SA")[unclass(dates + 4) %% 7 + 1]
-
-.next_weekday <- function(wday, start, count = 1, interval = 1) {
-    ## wday : 0 SU, 1 MO ... => target day
-    ## start: a date
-    if (count == 0)
-        return(numeric(0L))
-    ans <- (wday - .weekday(start)) %% 7 +
-        rep(7 * interval * seq(0, count - 1), each = length(wday))
-    ans <- sort(ans) + start
-    ans[seq_len(count)]
-}
 
 .parse_rrule <- function(RRULE, ...) {
 
@@ -994,16 +961,6 @@ ical_structure <- function(file, ..., strict.eol = TRUE) {
             ab[digits(n[2L], 36) + 1]), sep = "", collapse="")
 }
 
-
-## copied from datetimeutils https://github.com/enricoschumann/datetimeutils
-year <- function(x)
-    as.POSIXlt(x)$year + 1900
-
-month <- function(x)
-    as.POSIXlt(x)$mon + 1
-
-mday <- function(x)
-    as.POSIXlt(x)$mday
 
 
 ## TODO no default => .default must raise error

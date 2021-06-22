@@ -63,6 +63,7 @@ function(DTSTART = NULL,
 
     datetime <- !inherits(DTSTART, "Date")
     DTSTART.lt <- as.POSIXlt(DTSTART)
+    DTSTART.Date  <- as.Date(DTSTART)
 
 
 
@@ -196,10 +197,19 @@ function(DTSTART = NULL,
         ##        to WEEKLY.
 
         if (is.null(BYDAY)) {
-            BYDAY <- list(wday = names(.wday)[.wday == .weekday(DTSTART)],
+            BYDAY <- list(wday = names(.wday)[.wday == .weekday(DTSTART.Date)],
                           n = 0)
         }
 
+        if (!is.null(UNTIL)) {
+            
+        } else if (!is.null(COUNT)) {
+            ans.DTSTART <- .next_weekday(.wday[BYDAY$wday],
+                                         DTSTART.Date,
+                                         count = COUNT,
+                                         interval = INTERVAL)
+        }
+        
         rset <- seq(DTSTART, UNTIL, by = "1 day")
         if (INTERVAL > 1L) {
             ## map every timestamp to the start of the week
@@ -208,43 +218,6 @@ function(DTSTART = NULL,
             rset <- rset[.start_of_week(rset, WKST = .wday[WKST]) %in% tmp]
         }
 
-        if (!is.null(BYMONTH)) {
-            rset <- rset[.month(rset) %in% BYMONTH]
-        }
-        if (!is.null(BYWEEKNO)) {
-        }
-        if (!is.null(BYYEARDAY)) {
-        }
-        if (!is.null(BYMONTHDAY)) {
-            rset <- rset[mday(rset) %in% BYMONTHDAY]
-        }
-        if (!is.null(BYDAY)) {
-            num.wday <- .wday[BYDAY$wday]
-            rset <- rset[.weekday(rset) %in% num.wday]
-        }
-        if (datetime) {
-            if (!is.null(BYHOUR)) {
-            }
-            if (!is.null(BYMINUTE)) {
-            }
-            if (!is.null(BYSECOND)) {
-            }
-        }
-        if (!is.null(BYSETPOS)) {
-
-
-            rset <- unname(unlist(tapply(rset, format(rset, "%Y%m"),
-                   function(x) {
-
-                lenx <- length(x)
-                if (any(BYSETPOS < 0))  ## FIXME check for in positions outside length
-                    BYSETPOS[BYSETPOS < 0] <- lenx + BYSETPOS[BYSETPOS < 0] + 1
-                x[BYSETPOS]
-            })))
-            class(rset) <- class(DTSTART)
-
-        }
-        rset <- rset[rset >= DTSTART & rset <= UNTIL]
 
 
 

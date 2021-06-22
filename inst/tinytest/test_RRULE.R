@@ -51,7 +51,7 @@ DTSTART <- as.Date("2020-10-26")
 RRULE(DTSTART, source = txt)
 
 
-## weekly
+## WEEKLY
 txt <- "FREQ=WEEKLY;COUNT=10"
 DTSTART <- as.Date("2020-10-26")
 RRULE(DTSTART, source = txt)
@@ -66,4 +66,23 @@ RRULE(DTSTART, source = txt)
 
 txt <- "FREQ=WEEKLY;COUNT=10;INTERVAL=2;BYDAY=MO,TU;WKST=TU"
 DTSTART <- as.Date("2020-10-26")
+RRULE(DTSTART, source = txt)
+
+
+
+## YEARLY
+txt <- "FREQ=YEARLY;INTERVAL=1"
+DTSTART <- as.Date("1978-08-19")
+RRULE(DTSTART, source = txt)
+
+txt <- "FREQ=YEARLY;INTERVAL=2;COUNT=10"
+DTSTART <- as.Date("1978-08-19")
+RRULE(DTSTART, source = txt)
+
+txt <- "FREQ=YEARLY;COUNT=10"
+DTSTART <- as.Date("1978-08-19")
+RRULE(DTSTART, source = txt)
+
+txt <- "FREQ=YEARLY"
+DTSTART <- as.Date("1978-08-19")
 RRULE(DTSTART, source = txt)
