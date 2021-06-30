@@ -931,9 +931,14 @@ function(DTSTART, DTEND,
     for (j in i) {
         ans[[j]] <- .parse_rrule(ans[[j]])[[1]]
         if (!is.null(attributes(p[[j]]))) { ## FIXME: necessary?
+                                            ## tz etc. now in R data
             if (any(names(attributes(p[[j]])) %in% names(attributes(ans[[j]]))))
                 warning("attribute clash")
-            attributes(ans[[j]]) <- attributes(p[[j]])   ## tz etc. now in R data
+            if (any(miss.a <-
+                        !names(attributes(p[[j]])) %in% names(ans[[j]]))) {                
+                attributes(ans[[j]]) <- c(attributes(ans[[j]]), attributes(p[[j]])[miss.a])
+                
+            }
         }
     }
     ans
