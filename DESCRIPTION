@@ -19,6 +19,7 @@ Description: Utilities for handling iCalendar data, in
   can be expanded into actual occurance sets.  Timezones are
   supported.
 License: GPL-3
-URL: http://enricoschumann.net/R/packages/icalutils,
+URL: http://enricoschumann.net/R/packages/icalutils ,
+     https://git.sr.ht/~enricoschumann/icalutils , 
      https://github.com/enricoschumann/icalutils
 Suggests: base64enc, tinytest
