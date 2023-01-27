@@ -935,9 +935,9 @@ function(DTSTART, DTEND,
             if (any(names(attributes(p[[j]])) %in% names(attributes(ans[[j]]))))
                 warning("attribute clash")
             if (any(miss.a <-
-                        !names(attributes(p[[j]])) %in% names(ans[[j]]))) {                
+                        !names(attributes(p[[j]])) %in% names(ans[[j]]))) {
                 attributes(ans[[j]]) <- c(attributes(ans[[j]]), attributes(p[[j]])[miss.a])
-                
+
             }
         }
     }
@@ -970,25 +970,30 @@ ical_structure <- function(file, ..., strict.eol = TRUE) {
 }
 
 ## copy of https://github.com/enricoschumann/mailtools/blob/master/R/msgID.R
-.msgID <- function() {
-    digits <- function(k, b) {
-        if (all(k == 0L))
-            return(rep(0, length(k)))
-        nd <- 1 + floor(log(max(k), b))
-        ans <- numeric(length(k) * nd)
-        dim(ans) <- c(length(k), nd)
-        for (i in nd:1) {
-            ans[ ,i] <- k %% b
-            if (i > 1L)
-                k <- k%/%b
+.msgID <- function(n = 1) {
+    ans <- character(n)
+    for (i in seq_along(ans)) {
+        digits <- function(k, b) {
+            if (all(k == 0L))
+                return(rep(0, length(k)))
+            nd <- 1 + floor(log(max(k), b))
+            ans <- numeric(length(k) * nd)
+            dim(ans) <- c(length(k), nd)
+            for (i in nd:1) {
+                ans[ ,i] <- k %% b
+                if (i > 1L)
+                    k <- k%/%b
+            }
+            ans
         }
-        ans
+        ab <- c(1:9, 0,letters[1:26])
+        m <- c(floor(runif(1)*1e16),
+               floor(10000*as.numeric(Sys.time())))
+        ans[i] <- paste(c(ab[digits(m[1L], 36) + 1], ".",
+                          ab[digits(m[2L], 36) + 1]),
+                        sep = "", collapse="")
     }
-    ab <- c(1:9, 0,letters[1:26])
-    n <- c(floor(runif(1)*1e16),
-           floor(10000*as.numeric(Sys.time())))
-    paste(c(ab[digits(n[1L], 36) + 1], ".",
-            ab[digits(n[2L], 36) + 1]), sep = "", collapse="")
+    ans
 }
 
 
@@ -1067,11 +1072,16 @@ function(dtstart,
     ans
 }
 
-## TODO no default => .default must raise error
 to_vevent <- function(x, ...)
     UseMethod("to_vevent")
 
-
+to_vevent.default <- function(x, ...) {
+    cl <- .class2(x)
+    stop("no 'to_vevent' method for an object of class",
+         if (length(cl) > 1) "(es)",
+         " ",
+         paste(sQuote(cl), collapse = ", "))
+}
 
 vevent <-
 function(dtstart,
@@ -1086,41 +1096,56 @@ function(dtstart,
          file,
          fold = TRUE) {
 
+    len <- max(length(dtstart),
+               length(dtend),
+               length(summary),
+               length(description))
+
+    dtstart <- if ((n <- len/length(dtstart)) == 1) dtstart else rep(dtstart, n)
+    dtend <- if ((n <- len/length(dtend)) == 1) dtend else rep(dtend, n)
+    summary <- if ((n <- len/length(summary)) == 1) summary else rep(summary, n)
+    description <- if ((n <- len/length(description)) == 1) description else rep(description, n)
+
     DTSTART <- if (inherits(dtstart, "Date"))
                    format(dtstart, "%Y%m%d")
                else
                    .z(dtstart)
 
-
     UID <- if (is.null(uid))
-               .msgID()
+               paste0(.msgID(len), ".", Sys.info()["nodename"])
            else
                uid
 
-    event <- c(paste0("UID:", paste0(UID, ".", Sys.info()["nodename"])),
-               paste0("SUMMARY:", summary),
-               paste0("DTSTAMP:", .z(Sys.time())),
-               paste0("DTSTART:", DTSTART))
+    events <- character(0L)
+    for (i in seq_len(len)) {
+        event <- c(paste0("UID:", UID[i]),
+                   paste0("SUMMARY:", summary[i]),
+                   paste0("DTSTAMP:", .z(Sys.time())),
+                   paste0("DTSTART:", DTSTART[i]))
 
-    if (!is.null(dtend)) {
-        DTEND <- if (inherits(dtend, "Date")) {
-                     if (all.day)
-                         dtend <- dtend + 1
-                     format(dtend, "%Y%m%d")
-                 } else
-                     .z(dtend)
+        if (!is.null(dtend)) {
+            DTEND <- if (inherits(dtend, "Date")) {
+                         if (all.day)
+                             dtend[i] <- dtend[i] + 1
+                         format(dtend[i], "%Y%m%d")
+                     } else
+                         .z(dtend[i])
+            event <- c(event,
+                       paste0("DTEND:", DTEND))
+        } else if (all.day) {
+            DTEND <- dtstart[i] + 1
+            DTEND <- format(DTEND, "%Y%m%d")
+            event <- c(event,
+                       paste0("DTEND:", DTEND))
+        }
         event <- c(event,
-                   paste0("DTEND:", DTEND))
-    } else if (all.day) {
-        DTEND <- dtstart + 1
-        DTEND <- format(DTEND, "%Y%m%d")
-        event <- c(event,
-                   paste0("DTEND:", DTEND))
+                   paste0("CATEGORIES:",
+                          paste0(categories, collapse = ",")))
+        event <- c("BEGIN:VEVENT",
+                   event,
+                   "END:VEVENT")
+        events <- c(events, event)
     }
-
-    event <- c("BEGIN:VEVENT",
-               event,
-               "END:VEVENT")
 
     if (vcalendar) {
         head <- c("BEGIN:VCALENDAR",
@@ -1131,19 +1156,19 @@ function(dtstart,
         head <- gsub("%%version%%", VERSION, head)
 
         foot <- "END:VCALENDAR"
-        event <- c(head, event, foot)
+        events <- c(head, events, foot)
+
     }
 
-    ans <- as.list(event)
+    ans <- as.list(events)
     class(ans) <- "vevent"
-
     if (!missing(file)) {
         ## TODO FOLD
 
-        writeLines(paste(paste0(event, .eol.strict), collapse = ""), file)
-        invisible(event)
+        writeLines(paste(paste0(events, .eol.strict), collapse = ""), file)
+        invisible(events)
     } else
-        event
+        events
 
 }
 
