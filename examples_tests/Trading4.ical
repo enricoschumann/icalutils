@@ -1,0 +1,13 @@
+BEGIN:VCALENDAR
+METHOD:PUBLISH
+VERSION:2.0
+BEGIN:VEVENT
+UID:1706562@eurexchange.com
+SUMMARY:Eurex is closed for trading and clearing (exercise, settlement and cash) in all derivatives
+DESCRIPTION:Eurex is closed for trading and clearing (exercise, settlement and cash) in all derivatives
+CREATED:20191212T100908Z
+TRANSP:TRANSPARENT
+CLASS:PUBLIC
+DTSTART;VALUE=DATE:20200101
+END:VEVENT
+END:VCALENDAR

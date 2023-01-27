@@ -1,9 +1,19 @@
-v0.2-0  (2021-10-31; not yet released)
+v0.2-0  (2023-??-??; not yet released)
 
   o there are now subsetting and print methods for
     "icalendar" and "vevent" objects
 
   o more rrules are supported
+
+  o additional source repository at
+    https://git.sr.ht/~enricoschumann/icalutils
+
+  o 'vevent' now recyles its arguments, allowing
+    invokations such as
+
+      vevent(dtstart = c(as.Date("2023-01-28"),
+                         as.Date("2023-02-04")),
+             summary = "Repeated event")
 
   o ....
 
