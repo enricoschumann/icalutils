@@ -12,7 +12,7 @@
 .week <- function(x, WKST = 1) {
 
     ## RFC 5545, 3.3.10.
-    ## 
+    ##
     ## Week number one of the calendar year is the first
     ## week that contains at least four (4) days in that
     ## calendar year.
@@ -72,3 +72,8 @@
     ans[seq_len(count)]
 }
 
+.date2char <- function(d)
+    format(d, format = "%Y%m%d")
+
+.char2date <- function(s)
+    as.Date(s, format = "%Y%m%d")

@@ -10,9 +10,18 @@
     s
 }
 
-.fold <- function(s) {
-    i <- nchar(s) > 75
-    ## TODO
+.wday <- c(
+    "SU" = 0,
+    "MO" = 1,
+    "TU" = 2,
+    "WE" = 3,
+    "TH" = 4,
+    "FR" = 5,
+    "SA" = 6)
+
+.fold <- function(s, max.bytes = 75) {
+    .NotYetImplemented(".fold")
+    i <- nchar(s, type = "bytes") > max.bytes
 }
 
 .unfold <- function(s, strict.eol) {
@@ -58,7 +67,7 @@ function(file,
     cal.txt <- .unfold(cal.txt, strict.eol)
 
 
-    ## TODO: text operations -- remove \, etc?
+    ## TODO text operations -- remove \, etc
     cal <- .properties(cal.txt, keep.source = keep.source)
     cal <- .expand_properties(cal, tz.names = tz.names)
 
@@ -985,6 +994,7 @@ function(dtstart,
          description = NULL,
          uid = NULL,
          categories = NULL,
+         location = NULL,
          ...,
          vcalendar = TRUE,
          file,
@@ -1010,7 +1020,7 @@ function(dtstart,
            else
                uid
 
-    events <- character(0L)
+    events <- vector("list", len)
     for (i in seq_len(len)) {
         event <- c(paste0("UID:", UID[i]),
                    paste0("SUMMARY:", summary[i]),
@@ -1032,13 +1042,19 @@ function(dtstart,
             event <- c(event,
                        paste0("DTEND:", DTEND))
         }
-        event <- c(event,
-                   paste0("CATEGORIES:",
-                          paste0(categories, collapse = ",")))
+        if (!is.null(categories))
+            event <- c(event,
+                       paste0("CATEGORIES:",
+                              paste0(categories, collapse = ",")))
+        if (!is.null(location))
+            event <- c(event,
+                       paste0("LOCATION:",
+                              paste0(location, collapse = ",")))
         event <- c("BEGIN:VEVENT",
                    event,
                    "END:VEVENT")
-        events <- c(events, event)
+        class(event) <- "vevent"
+        events[[i]] <- event
     }
 
     if (vcalendar) {
@@ -1059,7 +1075,7 @@ function(dtstart,
     if (!missing(file)) {
         ## TODO FOLD
 
-        writeLines(paste(paste0(events, .eol.strict), collapse = ""), file)
+        writeLines(paste(paste0(unlist(events), .eol.strict), collapse = ""), file)
         invisible(events)
     } else
         events
