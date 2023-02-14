@@ -1,3 +1,7 @@
+2023-02-14  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/functions.R (vevent): add argument "location"
+
 2023-01-27  Enrico Schumann  <es@enricoschumann.net>
 
         * R/functions.R (to_vevent.default): add
