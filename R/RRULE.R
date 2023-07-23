@@ -202,14 +202,14 @@ function(DTSTART = NULL,
         }
 
         if (!is.null(UNTIL)) {
-            
+
         } else if (!is.null(COUNT)) {
             ans.DTSTART <- .next_weekday(.wday[BYDAY$wday],
                                          DTSTART.Date,
                                          count = COUNT,
                                          interval = INTERVAL)
         }
-        
+
         rset <- seq(DTSTART, UNTIL, by = "1 day")
         if (INTERVAL > 1L) {
             ## map every timestamp to the start of the week
@@ -307,7 +307,7 @@ function(DTSTART = NULL,
         } else {
             if (is.null(BYMONTH))
                 BYMONTH <- DTSTART.lt$mon + 1
-            if (is.null(BYMONTHDAY))            
+            if (is.null(BYMONTHDAY))
                 BYMONTHDAY <- DTSTART.lt$mday
 
             if (datetime) {
@@ -319,7 +319,7 @@ function(DTSTART = NULL,
                     BYHOUR   <- DTSTART.lt$hour
             }
 
-            
+
         }
         YEAR <- .year(DTSTART)
         if (!is.null(UNTIL))
@@ -332,7 +332,7 @@ function(DTSTART = NULL,
             NULL
         else
             ans.DTSTART <- as.Date(do.call(paste, tmp), format = "%Y %m %d")
-        
+
     }
     ans <- list()
     ans$text <- if (!is.null(source))
@@ -343,7 +343,6 @@ function(DTSTART = NULL,
         ans_rs <- cbind(ans_rs, DTEND)
     ans$recurrence_set <- ans_rs
     ans
-
 }
 
 
@@ -371,6 +370,7 @@ function(dtstart,
     if (!is.null(count) && !is.null(until))
         stop("specify either ", sQuote("count"),
              " or ", sQuote("until"), ", but not both")
+
     if (!is.null(text)) {
         text <- sub("^RRULE:", "", text, ignore.case = TRUE)
         rrule <- .parse_rrule(text)[[1L]]
@@ -450,7 +450,7 @@ DTENDs <- function(DTSTART, DTEND, datetime = FALSE) {
     if (datetime) {
         d <- as.Date(DTEND[1]) - as.Date(DTSTART[1])
         DTSTART + d
-        
+
 
     } else {
         d <- DTEND[1] - DTSTART[1]

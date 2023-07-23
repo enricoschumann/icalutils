@@ -10,16 +10,8 @@
     s
 }
 
-.wday <- c(
-    "SU" = 0,
-    "MO" = 1,
-    "TU" = 2,
-    "WE" = 3,
-    "TH" = 4,
-    "FR" = 5,
-    "SA" = 6)
-
 .fold <- function(s, max.bytes = 75) {
+    ## RFC ==> max 75 octets
     .NotYetImplemented(".fold")
     i <- nchar(s, type = "bytes") > max.bytes
 }
@@ -63,6 +55,7 @@ function(file,
         tz.names <- character(0)
 
 
+    ## TODO: two or more files might be specified
     cal.txt <- .read_one_line(file)
     cal.txt <- .unfold(cal.txt, strict.eol)
 
@@ -90,7 +83,6 @@ function(file,
                 if (is.null(x[["UID"]])) NA else x[["UID"]])
     class(ans) <- c("icalendar")
     ans
-
 }
 
 print.vevent <- function(x, ...) {
@@ -248,7 +240,7 @@ function(x,
 
     ## takes a vector of one or more rrules (character)
     ## and returns a list of lists. Note that the
-    ## rrules must not start with "RRULE:" anymore.
+    ## rrules must *not* start with "RRULE:" anymore.
 
     rules <- strsplit(RRULE, ";", fixed = TRUE)
     rules <- lapply(rules, strsplit, "=", fixed = TRUE)
