@@ -20,7 +20,7 @@
     "SA" = 6)
 
 .fold <- function(s, max.bytes = 75) {
-    .NotYetImplemented(".fold")
+    .NotYetImplemented()
     i <- nchar(s, type = "bytes") > max.bytes
 }
 
@@ -166,7 +166,8 @@ function(x,
         RRULE <- lapply(x[recurring], `[[`, "RRULE")
         for (r in seq_along(RRULE)) {
             ## if ("EXDATE" %in% names(x[recurring][[r]]))
-
+            message(start[recurring][[r]])
+            
             created <- .expand_rrule(start[recurring][[r]],
                                      end  [recurring][[r]],
                                      RRULE = RRULE[[r]],
@@ -178,7 +179,6 @@ function(x,
             recurring.events[[r]] <- created
         }
     }
-
     if (all.timestamps.POSIXct) {
 
         ## TODO: add original dates?
