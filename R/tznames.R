@@ -145,7 +145,7 @@
         "Etc/GMT+8",
         "America/Los_Angeles",
         "America/Phoenix",
-        "America/Chihuahua",
+        "America/Mazatlan",
         "America/Denver",
         "America/Whitehorse",
         "America/Guatemala",
