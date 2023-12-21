@@ -176,15 +176,17 @@ function(x,
         for (r in seq_along(RRULE)) {
             ## if ("EXDATE" %in% names(x[recurring][[r]]))
             message(start[recurring][[r]])
-
-            created <- .expand_rrule(start[recurring][[r]],
-                                     end  [recurring][[r]],
-                                     RRULE = RRULE[[r]],
-                                     UNTIL = recur.until,
-                                     COUNT = recur.count)
-            if (isFALSE(created))
+            created <- try(.expand_rrule(start[recurring][[r]],
+                                         end  [recurring][[r]],
+                                         RRULE = RRULE[[r]],
+                                         UNTIL = recur.until,
+                                         COUNT = recur.count), silent = TRUE)
+            if (inherits(created, "try-error") ||
+                isFALSE(created)) {
                 message("cannot parse RRULE",
                         attr(RRULE[[r]], "RRULE"))
+                created <- FALSE
+            }
             recurring.events[[r]] <- created
         }
     }
