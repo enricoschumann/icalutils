@@ -1,7 +1,14 @@
+2024-02-19  Enrico Schumann  <es@enricoschumann.net>
+
+        * R/functions.R (vevent): support generating UUIDs via
+        package 'uuid'
+
+        * DESCRIPTION (Suggests): add 'uuid'
+
 2023-12-21  Enrico Schumann  <es@enricoschumann.net>
 
-	* R/functions.R (as.data.frame.icalendar): only try to
-	expand recurrence rule, and continue on failure
+        * R/functions.R (as.data.frame.icalendar): only try to
+        expand recurrence rule, and continue on failure
 
 2023-02-14  Enrico Schumann  <es@enricoschumann.net>
 

@@ -2,7 +2,7 @@ Package: icalutils
 Type: Package
 Title: Read, Process and Create iCalendar Data and Files
 Version: 0.2-0
-Date: 2023-12-21
+Date: 2024-02-19
 Authors@R: c(person("Enrico", "Schumann",
                     role  = c("aut", "cre"),
                     email = "es@enricoschumann.net",
@@ -16,11 +16,11 @@ Description: Utilities for handling iCalendar data, in
   (package 'base64enc' is only needed if calendar files have
   attachments).  The package maps iCalendar dates and
   date-times to R's native 'Date' and 'POSIXct' classes.
-  Recurrance rules for repeated items (such as birthdays)
-  can be expanded into actual occurance sets.  Timezones are
+  Recurrence rules for repeated items (such as birthdays)
+  can be expanded into actual occurrence sets.  Timezones are
   supported.
 License: GPL-3
 URL: http://enricoschumann.net/R/packages/icalutils ,
      https://git.sr.ht/~enricoschumann/icalutils , 
      https://github.com/enricoschumann/icalutils
-Suggests: base64enc, tinytest
+Suggests: base64enc, tinytest, uuid

@@ -1009,10 +1009,17 @@ function(dtstart,
                else
                    .z(dtstart)
 
-    UID <- if (is.null(uid))
-               paste0(.msgID(len), ".", Sys.info()["nodename"])
-           else
-               uid
+    if (is.null(uid)) {
+        UID <- paste0(.msgID(len), ".", Sys.info()["nodename"])
+    } else if (isTRUE(uid)) {
+        if (requireNamespace("uuid")) {
+            UID <- uuid::UUIDgenerate(n = len)
+        } else {
+            warning("package uuid not available")
+            UID <- paste0(.msgID(len), ".", Sys.info()["nodename"])
+        }
+    } else
+            UID <- uid
 
     events <- vector("list", len)
     for (i in seq_len(len)) {
